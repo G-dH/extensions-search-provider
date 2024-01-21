@@ -14,13 +14,11 @@ import GLib from 'gi://GLib';
 import Clutter from 'gi://Clutter';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
-import Gio from 'gi://Gio';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import { InjectionManager } from  'resource:///org/gnome/shell/extensions/extension.js';
 
 let Me;
-let _installedExtensions;
 
 export function init(me) {
     Me = me;
@@ -28,7 +26,6 @@ export function init(me) {
 
 export function cleanGlobals() {
     Me = null;
-    _installedExtensions = null;
 }
 
 export class Overrides extends InjectionManager {
@@ -149,51 +146,6 @@ export function activateSearchProvider(prefix = '') {
     }
 }
 
-export  function dashNotDefault() {
-    return Main.overview.dash !== Main.overview._overview._controls.layoutManager._dash;
-}
-
-export function dashIsDashToDock() {
-    return Main.overview.dash._isHorizontal !== undefined;
-}
-
-// Reorder Workspaces - callback for Dash and workspacesDisplay
-export function reorderWorkspace(direction = 0) {
-    let activeWs = global.workspace_manager.get_active_workspace();
-    let activeWsIdx = activeWs.index();
-    let targetIdx = activeWsIdx + direction;
-    if (targetIdx > -1 && targetIdx < global.workspace_manager.get_n_workspaces())
-        global.workspace_manager.reorder_workspace(activeWs, targetIdx);
-}
-
-export function activateKeyboardForWorkspaceView() {
-    Main.ctrlAltTabManager._items.forEach(i => {
-        if (i.sortGroup === 1 && i.name === 'Windows')
-            Main.ctrlAltTabManager.focusGroup(i);
-    });
-}
-
-export function exposeWindows(adjustment, activateKeyboard) {
-    // expose windows for static overview modes
-    if (!adjustment.value && !Main.overview._animationInProgress) {
-        if (adjustment.value === 0) {
-            adjustment.value = 0;
-            adjustment.ease(1, {
-                duration: 200,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                onComplete: () => {
-                    if (activateKeyboard) {
-                        Main.ctrlAltTabManager._items.forEach(i => {
-                            if (i.sortGroup === 1 && i.name === 'Windows')
-                                Main.ctrlAltTabManager.focusGroup(i);
-                        });
-                    }
-                },
-            });
-        }
-    }
-}
-
 export function isShiftPressed(state = null) {
     if (state === null)
         [,, state] = global.get_pointer();
@@ -281,95 +233,4 @@ export function isMoreRelevant(stringA, stringB, pattern) {
         return !strSplitA[0].startsWith(pattern) && strSplitB[0].startsWith(pattern);
     else
         return !aAny && bAny;
-}
-
-export function getEnabledExtensions(pattern = '') {
-    let result = [];
-    // extensionManager is unreliable at startup because it is uncertain whether all extensions have been loaded
-    // also gsettings key can contain already removed extensions (user deleted them without disabling them first)
-    // therefore we have to check what's really installed in the filesystem
-    if (!_installedExtensions) {
-        const extensionFiles = [...collectFromDatadirs('extensions', true)];
-        _installedExtensions = extensionFiles.map(({ info }) => {
-            let fileType = info.get_file_type();
-            if (fileType !== Gio.FileType.DIRECTORY)
-                return null;
-            const uuid = info.get_name();
-            return uuid;
-        });
-    }
-    // _enabledExtensions contains content of the enabled-extensions key from gsettings, not actual state
-    const enabled = Main.extensionManager._enabledExtensions;
-    result = _installedExtensions.filter(ext => enabled.includes(ext));
-    // _extensions contains already loaded extensions, so we can try to filter out broken or incompatible extensions
-    const active = Main.extensionManager._extensions;
-    result = result.filter(ext => {
-        const extension = active.get(ext);
-        if (extension)
-            return ![3, 4].includes(extension.state); // 3 - ERROR, 4 - OUT_OF_TIME (not supported by shell-version in metadata)
-        // extension can be enabled but not yet loaded, we just cannot see its state at this moment, so let it pass as enabled
-        return true;
-    });
-    // return only extensions matching the search pattern
-    return result.filter(uuid => uuid !== null && uuid.includes(pattern));
-}
-
-function* collectFromDatadirs(subdir, includeUserDir) {
-    let dataDirs = GLib.get_system_data_dirs();
-    if (includeUserDir)
-        dataDirs.unshift(GLib.get_user_data_dir());
-
-    for (let i = 0; i < dataDirs.length; i++) {
-        let path = GLib.build_filenamev([dataDirs[i], 'gnome-shell', subdir]);
-        let dir = Gio.File.new_for_path(path);
-
-        let fileEnum;
-        try {
-            fileEnum = dir.enumerate_children('standard::name,standard::type',
-                Gio.FileQueryInfoFlags.NONE, null);
-        } catch (e) {
-            fileEnum = null;
-        }
-        if (fileEnum !== null) {
-            let info;
-            while ((info = fileEnum.next_file(null)))
-                yield { dir: fileEnum.get_child(info), info };
-        }
-    }
-}
-
-export function getScrollDirection(event) {
-    // scroll wheel provides two types of direction information:
-    // 1. Clutter.ScrollDirection.DOWN / Clutter.ScrollDirection.UP
-    // 2. Clutter.ScrollDirection.SMOOTH + event.get_scroll_delta()
-    // first SMOOTH event returns 0 delta,
-    //  so we need to always read event.direction
-    //  since mouse without smooth scrolling provides exactly one SMOOTH event on one wheel rotation click
-    // on the other hand, under X11, one wheel rotation click sometimes doesn't send direction event, only several SMOOTH events
-    // so we also need to convert the delta to direction
-    let direction = event.get_scroll_direction();
-
-    if (direction !== Clutter.ScrollDirection.SMOOTH)
-        return direction;
-
-    let [, delta] = event.get_scroll_delta();
-
-    if (!delta)
-        return null;
-
-    direction = delta > 0 ? Clutter.ScrollDirection.DOWN : Clutter.ScrollDirection.UP;
-
-    return direction;
-}
-
-export function getWindows(workspace) {
-    // We ignore skip-taskbar windows in switchers, but if they are attached
-    // to their parent, their position in the MRU list may be more appropriate
-    // than the parent; so start with the complete list ...
-    let windows = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, workspace);
-    // ... map windows to their parent where appropriate ...
-    return windows.map(w => {
-        return w.is_attached_dialog() ? w.get_transient_for() : w;
-    // ... and filter out skip-taskbar windows and duplicates
-    }).filter((w, i, a) => !w.skip_taskbar && a.indexOf(w) === i);
 }
