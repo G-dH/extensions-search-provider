@@ -22,7 +22,7 @@ export default class ESP extends Extension.Extension {
         const Me = this;
         Me.Util = Util;
         Me.opt = null; // no settings yet
-        Me.Util.init();
+        Me.Util.init(Me);
         Me._ = this.gettext.bind(this);
         this._esp = new ExtensionsSearchProviderModule(Me);
         this._esp.update();
