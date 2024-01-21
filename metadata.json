@@ -1,0 +1,15 @@
+{
+  "description": "Access settings for installed extensions from the overview's search.",
+  "gettext-domain": "extensions-search-provider",
+  "settings-schema": "org.gnome.shell.extensions.extensions-search-provider",
+  "session-modes": ["user"],
+  "name": "ESP (Extensions Search Provider)",
+  "shell-version": [
+    "45",
+    "46"
+  ],
+  "url": "https://github.com/G-dH/extensions-search-provider",
+  "donations": {"buymeacoffee": "georgdh"},
+  "uuid": "extensions-search-provider@G-dH.github.com",
+  "version-name": "46.1"
+}
