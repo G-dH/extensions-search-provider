@@ -1,10 +1,12 @@
 # ESP (Extensions Search Provider)
 A GNOME Shell extension that gives you access to extensions settings through overview search.
 
-This extensions has been originally crated as a V-Shell extension module.
+This extensions has been originally crated as a module for V-Shell extension.
 
 ### Supported GNOME Shell versions
 45, 46
+
+![ESP (Extensions Search Provider)](screenshot.jpg)
 
 ## How to use ESP
 1.  Open the overview (press and release the Super key or trigger the hot corner)
@@ -30,5 +32,3 @@ After installation you need to enable the extension.
 ## Buy me a coffee
 If you like my extensions and want to keep me motivated give me some useful feedback, but you can also help me with my coffee expenses:
 [buymeacoffee.com/georgdh](https://buymeacoffee.com/georgdh)
-
-![ESP (Extensions Search Provider)](screenshot.jpg)
