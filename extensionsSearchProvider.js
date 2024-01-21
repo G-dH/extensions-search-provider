@@ -3,7 +3,7 @@
  * extensionsSearchProvider.js
  *
  * @author     GdH <G-dH@github.com>
- * @copyright  2022 - 2024
+ * @copyright  2023 - 2024
  * @license    GPL-3.0
  */
 
@@ -73,28 +73,15 @@ export class ExtensionsSearchProviderModule {
     }
 
     _activateModule() {
-        // delay because Fedora had problem to register a new provider soon after Shell restarts
-        this._enableTimeoutId = GLib.timeout_add(
-            GLib.PRIORITY_DEFAULT,
-            2000,
-            () => {
-                if (!this._extensionsSearchProvider) {
-                    this._extensionsSearchProvider = new extensionsSearchProvider(opt);
-                    this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
-                }
-                this._enableTimeoutId = 0;
-                return GLib.SOURCE_REMOVE;
-            }
-        );
+        if (!this._extensionsSearchProvider) {
+            this._extensionsSearchProvider = new extensionsSearchProvider(opt);
+            this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
+        }
+
         console.debug('  ExtensionsSearchProviderModule - Activated');
     }
 
     _disableModule() {
-        if (this._enableTimeoutId) {
-            GLib.source_remove(this._enableTimeoutId);
-            this._enableTimeoutId = 0;
-        }
-
         if (this._extensionsSearchProvider) {
             this._getOverviewSearchResult()._unregisterProvider(this._extensionsSearchProvider);
             this._extensionsSearchProvider = null;
