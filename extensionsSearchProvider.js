@@ -9,14 +9,9 @@
 
 'use strict';
 
-import GLib from 'gi://GLib';
-import St from 'gi://St';
-import Gio from 'gi://Gio';
-import Shell from 'gi://Shell';
-import GObject from 'gi://GObject';
-import Clutter from 'gi://Clutter';
+const  { GLib, St, Gio, GObject, Clutter, Shell } = imports.gi;
 
-import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+const Main = imports.ui.main;
 
 const ExtensionState = {
     1: 'ENABLED',
@@ -37,9 +32,9 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-export const PREFIXES = ['`', ';', '|', 'eq//'];
+const PREFIXES = ['`', ';', '|', 'eq//'];
 
-export class ExtensionsSearchProviderModule {
+var ExtensionsSearchProviderModule = class {
     constructor(me) {
         Me = me;
         opt = Me.opt;
@@ -70,17 +65,29 @@ export class ExtensionsSearchProviderModule {
     }
 
     _activateModule() {
-        if (!this._extensionsSearchProvider) {
-            this._extensionsSearchProvider = new extensionsSearchProvider(opt);
-            this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
-        }
+        // GNOME 43/44 has a problem registering a new provider at the time the extension is enabled during Shell's startup
+        let delay = 0;
+        if (Main.layoutManager._startingUp)
+            delay = 2000;
+        this._enableTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            delay,
+            () => {
+                if (!this._extensionsSearchProvider) {
+                    this._extensionsSearchProvider = new extensionsSearchProvider(opt);
+                    this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
+                }
+                this._enableTimeoutId = 0;
+                return GLib.SOURCE_REMOVE;
+            }
+        );
 
         // In case the extension has been rebased after disabling another extension,
         // update the search results view so the user don't lose the context
         if (Main.overview._shown && Main.overview.searchEntry.text) {
             const text = Main.overview.searchEntry.text;
             Main.overview.searchEntry.text = 'eq///';
-            GLib.idle_add(GLib.PRIORITY_DEFAULT,
+            GLib.idle_add(GLib.PRIORITY_LOW,
                 () => {
                     Main.overview.searchEntry.text = text;
                 });
@@ -90,6 +97,10 @@ export class ExtensionsSearchProviderModule {
     }
 
     _disableModule() {
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+            this._enableTimeoutId = 0;
+        }
         if (this._extensionsSearchProvider) {
             this._getOverviewSearchResult()._unregisterProvider(this._extensionsSearchProvider);
             this._extensionsSearchProvider = null;
@@ -101,7 +112,7 @@ export class ExtensionsSearchProviderModule {
     _getOverviewSearchResult() {
         return Main.overview._overview.controls._searchController._searchResults;
     }
-}
+};
 
 class extensionsSearchProvider {
     constructor() {
@@ -123,7 +134,7 @@ class extensionsSearchProvider {
         this.isRemoteProvider = false;
     }
 
-    getInitialResultSet(terms/* , callback*/) {
+    getInitialResultSet(terms, callback, cancelable) {
         const extensions = {};
         Main.extensionManager._extensions.forEach(
             e => {
@@ -132,7 +143,13 @@ class extensionsSearchProvider {
         );
         this.extensions = extensions;
 
-        return new Promise(resolve => resolve(this._getResultSet(terms)));
+        // In GS 43 callback arg has been removed
+        if (cancelable === undefined) {
+            return new Promise(resolve => resolve(this._getResultSet(terms)));
+        } else {
+            callback(this._getResultSet(terms));
+            return null;
+        }
     }
 
     _getResultSet(terms) {
@@ -180,9 +197,13 @@ class extensionsSearchProvider {
         return resultIds;
     }
 
-    getResultMetas(resultIds/* , callback = null*/) {
+    getResultMetas(resultIds, callback, cancalable) {
         const metas = resultIds.map(id => this.getResultMeta(id));
-        return new Promise(resolve => resolve(metas));
+        if (cancalable === undefined)
+            return new Promise(resolve => resolve(metas));
+        else if (callback)
+            callback(metas);
+        return null;
     }
 
     getResultMeta(resultId) {
@@ -268,8 +289,13 @@ class extensionsSearchProvider {
             : results.slice(0, maxResults);
     }
 
-    getSubsearchResultSet(previousResults, terms/* , callback*/) {
-        return this.getInitialResultSet(terms);
+    getSubsearchResultSet(previousResults, terms, callback) {
+        if (!callback) {
+            return this.getInitialResultSet(terms);
+        } else {
+            callback(this._getResultSet(terms));
+            return null;
+        }
     }
 }
 

@@ -4,11 +4,12 @@
   "settings-schema": "org.gnome.shell.extensions.extensions-search-provider",
   "name": "ESP (Extensions Search Provider)",
   "shell-version": [
-    "45",
-    "46"
+    "42",
+    "43",
+    "44"
   ],
   "url": "https://github.com/G-dH/extensions-search-provider",
   "donations": {"buymeacoffee": "georgdh"},
   "uuid": "extensions-search-provider@G-dH.github.com",
-  "version-name": "46.1"
+  "version-name": "44.1"
 }

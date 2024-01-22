@@ -10,23 +10,28 @@
 
 'use strict';
 
-import * as Extension from 'resource:///org/gnome/shell/extensions/extension.js';
+const ExtensionUtils = imports.misc.extensionUtils;
+const MyExtension = ExtensionUtils.getCurrentExtension();
+const ExtensionsSearchProviderModule = MyExtension.imports.extensionsSearchProvider.ExtensionsSearchProviderModule;
+const Util = MyExtension.imports.util;
 
-// Me imports
-import { ExtensionsSearchProviderModule } from './extensionsSearchProvider.js';
-import * as Util from './util.js';
+function init() {
+    ExtensionUtils.initTranslations();
+    return new ESP();
+}
 
-export default class ESP extends Extension.Extension {
+class ESP {
     enable() {
-        const Me = this;
-        Me.Util = Util;
-        Me.Util.init(Me);
-        Me._ = this.gettext.bind(this);
+        const Me = MyExtension;
+        this.Util = Util;
+        this.Util.init(Me);
+        this.gettext = imports.gettext.domain(Me.metadata['gettext-domain']).gettext;
+        this._ = Me.gettext;
 
-        this._esp = new ExtensionsSearchProviderModule(Me);
+        this._esp = new ExtensionsSearchProviderModule(this);
         this._esp.update();
 
-        console.debug(`${this.metadata.name}: enabled`);
+        console.debug(`${MyExtension.metadata.name}: enabled`);
     }
 
     disable() {
@@ -36,6 +41,6 @@ export default class ESP extends Extension.Extension {
         this.Util = null;
         this._esp = null;
 
-        console.debug(`${this.metadata.name}: disabled`);
+        console.debug(`${MyExtension.metadata.name}: disabled`);
     }
 }
