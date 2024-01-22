@@ -37,12 +37,9 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-// needs to be accessible from vw module
 export const PREFIX = 'eq//';
 
 export class ExtensionsSearchProviderModule {
-    // export for other modules
-    static _PREFIX = PREFIX;
     constructor(me) {
         Me = me;
         opt = Me.opt;
@@ -76,6 +73,17 @@ export class ExtensionsSearchProviderModule {
         if (!this._extensionsSearchProvider) {
             this._extensionsSearchProvider = new extensionsSearchProvider(opt);
             this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
+        }
+
+        // In case the extension has been rebased after disabling another extension,
+        // update the search results view so the user don't lose the context
+        if (Main.overview._shown && Main.overview.searchEntry.text) {
+            const text = Main.overview.searchEntry.text;
+            Main.overview.searchEntry.text = 'eq///';
+            GLib.idle_add(GLib.PRIORITY_DEFAULT,
+                () => {
+                    Main.overview.searchEntry.text = text;
+                });
         }
 
         console.debug('  ExtensionsSearchProviderModule - Activated');
@@ -128,11 +136,19 @@ class extensionsSearchProvider {
     }
 
     _getResultSet(terms) {
-        this._listAllResults = terms[0].startsWith(PREFIX);
+        let prefix;
+        for (let p of [PREFIX, '`', ';']) {
+            if (terms[0].startsWith(p)) {
+                prefix = p;
+                break;
+            }
+        }
+        this._listAllResults = !!prefix;
+
         // do not modify original terms
         let termsCopy = [...terms];
         // search for terms without prefix
-        termsCopy[0] = termsCopy[0].replace(PREFIX, '');
+        termsCopy[0] = termsCopy[0].replace(prefix, '');
 
         const candidates = this.extensions;
         const _terms = [].concat(termsCopy);
@@ -332,11 +348,6 @@ class ListSearchResult extends St.Button {
         if (![1, 2, 6, 3].includes(state))
             return;
 
-        if ([2, 6].includes(state))
-            Main.extensionManager.enableExtension(this.extension.uuid);
-        else if ([1, 3].includes(state))
-            Main.extensionManager.disableExtension(this.extension.uuid);
-
         if (_toggleTimeout)
             GLib.source_remove(_toggleTimeout);
 
@@ -354,6 +365,11 @@ class ListSearchResult extends St.Button {
                 return GLib.SOURCE_REMOVE;
             }
         );
+
+        if ([2, 6].includes(state))
+            Main.extensionManager.enableExtension(this.extension.uuid);
+        else if ([1, 3].includes(state))
+            Main.extensionManager.disableExtension(this.extension.uuid);
     }
 
     get ICON_SIZE() {
