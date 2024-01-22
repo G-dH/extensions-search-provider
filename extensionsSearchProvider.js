@@ -37,7 +37,7 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-export const PREFIX = 'eq//';
+export const PREFIXES = ['`', ';', '|', 'eq//'];
 
 export class ExtensionsSearchProviderModule {
     constructor(me) {
@@ -137,7 +137,7 @@ class extensionsSearchProvider {
 
     _getResultSet(terms) {
         let prefix;
-        for (let p of [PREFIX, '`', ';']) {
+        for (let p of PREFIXES) {
             if (terms[0].startsWith(p)) {
                 prefix = p;
                 break;
