@@ -2,7 +2,6 @@
   "description": "Access settings for installed extensions from the overview's search.",
   "gettext-domain": "extensions-search-provider",
   "settings-schema": "org.gnome.shell.extensions.extensions-search-provider",
-  "session-modes": ["user"],
   "name": "ESP (Extensions Search Provider)",
   "shell-version": [
     "45",
