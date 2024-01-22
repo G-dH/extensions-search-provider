@@ -313,7 +313,7 @@ class ListSearchResult extends St.Button {
         this._iconBox = iconBox;
         this.icon = icon;
 
-        iconBox.connect('clicked', () => {
+        iconBox.connect('button-press-event', () => {
             this._toggleExtension();
             return Clutter.EVENT_STOP;
         });
