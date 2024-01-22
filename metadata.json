@@ -1,5 +1,5 @@
 {
-  "description": "Access settings for installed extensions from the overview's search.",
+  "description": "Access settings of installed extensions from the overview's search.",
   "gettext-domain": "extensions-search-provider",
   "settings-schema": "org.gnome.shell.extensions.extensions-search-provider",
   "name": "ESP (Extensions Search Provider)",
