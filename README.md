@@ -4,7 +4,9 @@ A GNOME Shell extension that gives you access to extensions Settings through ove
 This extensions has been originally crated as a module for V-Shell extension.
 
 ### Supported GNOME Shell versions
-45, 46
+42 - 46
+
+[<img alt="" height="100" src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true">](https://extensions.gnome.org/extension/6721)
 
 ![ESP (Extensions Search Provider)](screenshot.jpg)
 
@@ -19,7 +21,7 @@ This extensions has been originally crated as a module for V-Shell extension.
 
 ## Installation
 ### Installation from extensions.gnome.org
-The easiest way to install ESP: go to [extensions.gnome.org](https://extensions.gnome.org/extension/6721/esp-extensions-search-provider/) and toggle the switch. This installation also gives you automatic updates in the future.
+The easiest way to install ESP: go to [extensions.gnome.org](https://extensions.gnome.org/extension/6721) and toggle the switch. This installation also gives you automatic updates in the future.
 
 ### Installation from GitHub repository
 You may need to install `git`, `make`, `gettext` and `glib2.0` for successful installation.
