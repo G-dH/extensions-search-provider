@@ -32,7 +32,7 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-const PREFIXES = ['`', ';', '|', 'eq//'];
+const PREFIXES = ['we//', 'qqe', '`', ';', '|'];
 
 var ExtensionsSearchProviderModule = class {
     constructor(me) {
@@ -65,7 +65,7 @@ var ExtensionsSearchProviderModule = class {
     }
 
     _activateModule() {
-        // GNOME 43/44 has a problem registering a new provider at the time the extension is enabled during Shell's startup
+        // GNOME 43/44 has a problem registering a new provider during Shell's startup
         let delay = 0;
         if (Main.layoutManager._startingUp)
             delay = 2000;
@@ -118,16 +118,18 @@ class extensionsSearchProvider {
     constructor() {
         this.id = 'extensions';
         const appSystem = Shell.AppSystem.get_default();
-        let appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
+
+        let appInfo = appSystem.lookup_app('org.gnome.Extensions.desktop')?.get_app_info();
         if (!appInfo)
-            appInfo = appSystem.lookup_app('org.gnome.Extensions.desktop')?.get_app_info();
-        if (!appInfo)
+            appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
+        if (!appInfo) {
             appInfo = Gio.AppInfo.create_from_commandline('/usr/bin/gnome-extensions-app', 'Extensions', null);
-        appInfo.get_description = () => _('Search extensions');
-        appInfo.get_name = () => _('Extensions');
-        appInfo.get_id = () => 'org.gnome.Extensions.desktop';
-        appInfo.get_icon = () => Gio.icon_new_for_string('application-x-addon');
-        appInfo.should_show = () => true;
+            appInfo.get_name = () => _('Extensions');
+            appInfo.get_id = () => 'org.gnome.Extensions.desktop';
+            appInfo.get_icon = () => Gio.icon_new_for_string('application-x-addon');
+            appInfo.get_description = () => _('Search extensions');
+            appInfo.should_show = () => true;
+        }
 
         this.appInfo = appInfo;
         this.canLaunchSearch = true;
@@ -272,7 +274,16 @@ class extensionsSearchProvider {
     }
 
     launchSearch(terms, timeStamp) {
-        this.appInfo.launch([], global.create_app_launch_context(timeStamp, -1), null);
+        if (this._listAllResults) {
+            // launch Extensions app
+            this.appInfo.launch([], global.create_app_launch_context(timeStamp, -1), null);
+        } else {
+            // update search so all results will be listed
+            Main.overview._overview._controls._searchController._searchResults._reset();
+            Main.overview._overview.controls._searchEntry.set_text(`${PREFIXES[0]} ${terms}`);
+            // cause an error so the overview will stay open
+            this.dummyError();
+        }
     }
 
     activateResult(resultId/* terms, timeStamp*/) {
