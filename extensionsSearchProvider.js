@@ -32,7 +32,7 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-const PREFIXES = ['we//', 'qqe', '`', ';', '|'];
+const PREFIXES = ['eq//', 'qqe', '`', ';', '|'];
 
 var ExtensionsSearchProviderModule = class {
     constructor(me) {
