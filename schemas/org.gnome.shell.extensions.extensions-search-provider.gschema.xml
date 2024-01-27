@@ -8,17 +8,17 @@
     <key name='exclude-from-global-search' type='b'>
       <default>false</default>
     </key>
-    <key name='dash-icon-position' type='i'>
-      <default>1</default>
-    </key>
     <key name='show-incompatible' type='i'>
       <default>1</default>
     </key>
     <key name='results-order' type='i'>
-      <default>1</default>
+      <default>2</default>
     </key>
     <key name='fuzzy-match' type='b'>
       <default>false</default>
+    </key>
+    <key name='dash-icon-position' type='i'>
+      <default>1</default>
     </key>
   </schema>
 </schemalist>
