@@ -77,7 +77,7 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(
             itemFactory.getRowWidget(
-                _('Custom command prefix'),
+                _('Custom Command Prefix'),
                 _('Strings separated by space. The command prefix is a character/string added in front of the searched pattern, serving as both a blocker for other search providers and a command to ESP to list an all results. The default fixed command prefix is "eq//"'),
                 itemFactory.newEditableEntry(),
                 'customPrefixes'
@@ -86,7 +86,7 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(
             itemFactory.getRowWidget(
-                _('Enable fuzzy match'),
+                _('Enable Fuzzy Match'),
                 _('Enabling the fuzzy match allows you to skip letters in the pattern you are searching for and find "V-Shell" even if you enter "vll"'),
                 itemFactory.newSwitch(),
                 'fuzzyMatch'
@@ -96,7 +96,7 @@ export default class ESP extends ExtensionPreferences {
         optionList.push(
             itemFactory.getRowWidget(
                 _('Exclude Results From Global Search'),
-                _('Show results only if a the command prefix is used, so the ESP results'),
+                _('Show results only if a the command prefix is used, so the ESP results do not clutter the global search'),
                 itemFactory.newSwitch(),
                 'excludeFromGlobalSearch'
             )
