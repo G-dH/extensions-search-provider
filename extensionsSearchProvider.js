@@ -32,7 +32,7 @@ let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // so it needs to be something less common
-const PREFIXES = ['eq//', 'qqe', '`', ';', '|'];
+const PREFIX = 'eq//';
 
 var ExtensionsSearchProviderModule = class {
     constructor(me) {
@@ -155,13 +155,21 @@ class extensionsSearchProvider {
     }
 
     _getResultSet(terms) {
+        const prefixes = [PREFIX];
+        prefixes.push(...opt.CUSTOM_PREFIXES);
+
         let prefix;
-        for (let p of PREFIXES) {
-            if (terms[0].startsWith(p)) {
+        for (let p of prefixes) {
+            p = new RegExp(`^${p}`, 'i');
+            if (p.test(terms[0])) {
                 prefix = p;
                 break;
             }
         }
+
+        if (!prefix && opt.EXCLUDE_FROM_GLOBAL_SEARCH)
+            return new Map();
+
         this._listAllResults = !!prefix;
 
         // do not modify original terms
@@ -172,28 +180,37 @@ class extensionsSearchProvider {
         const candidates = this.extensions;
         const _terms = [].concat(termsCopy);
 
-        const term = _terms.join(' ');
+        const term = _terms.join(' ').trim();
 
-        const results = [];
+        let results = [];
         let m;
         for (let id in candidates) {
             const extension = this.extensions[id];
             const text = extension.metadata.name + (extension.state === 1 ? 'enabled' : '') + ([6, 2].includes(extension.state) ? 'disabled' : '');
-            // if (opt.SEARCH_FUZZY)
-            // m = Me.Util.fuzzyMatch(term, text);
-            // else
-            m = Me.Util.strictMatch(term, text);
+            if (opt.FUZZY)
+                m = Me.Util.fuzzyMatch(term, text);
+            else
+                m = Me.Util.strictMatch(term, text);
 
             if (m !== -1)
                 results.push({ weight: m, id });
         }
 
+        // filter out incompatible
+        const hideIncompatible = !opt.SHOW_INCOMPATIBLE || (!prefix && opt.INCOMPATIBLE_HIDE_GLOBAL) || (term && opt.INCOMPATIBLE_FULL_ONLY);
+        if (hideIncompatible)
+            results = results.filter(e => this.extensions[e.id].state !== 4);
+
         // sort alphabetically
         results.sort((a, b) => this.extensions[a.id].metadata.name.localeCompare(this.extensions[b.id].metadata.name));
+
         // enabled first
-        // results.sort((a, b) => this.extensions[a.id].state !== 1 && this.extensions[b.id].state === 1);
+        if (opt.ENABLED_FIRST)
+            results.sort((a, b) => this.extensions[a.id].state !== 1 && this.extensions[b.id].state === 1);
+
         // incompatible last
-        results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
+        if (!hideIncompatible && opt.INCOMPATIBLE_LAST)
+            results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
 
         const resultIds = results.map(item => item.id);
         return resultIds;
@@ -280,7 +297,7 @@ class extensionsSearchProvider {
         } else {
             // update search so all results will be listed
             Main.overview._overview._controls._searchController._searchResults._reset();
-            Main.overview._overview.controls._searchEntry.set_text(`${PREFIXES[0]} ${terms}`);
+            Main.overview._overview.controls._searchEntry.set_text(`${PREFIX} ${terms}`);
             // cause an error so the overview will stay open
             this.dummyError();
         }
