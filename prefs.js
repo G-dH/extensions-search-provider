@@ -136,7 +136,7 @@ class ESP {
                 [
                     [_('Hide'), 0],
                     [_('Show'), 1],
-                    [_('Show when in full list'), 2],
+                    [_('Show in full list'), 2],
                     [_('Show when prefix is used'), 3],
                 ]
             )
