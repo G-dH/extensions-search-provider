@@ -43,7 +43,7 @@ export class ExtensionsSearchProviderModule {
     constructor(me) {
         Me = me;
         opt = Me.opt;
-        _  = Me._;
+        _  = Me.gettext;
 
         this._firstActivation = true;
         this.moduleEnabled = false;
@@ -72,7 +72,7 @@ export class ExtensionsSearchProviderModule {
     _activateModule() {
         if (!this._extensionsSearchProvider) {
             this._extensionsSearchProvider = new ExtensionsSearchProvider(opt);
-            this._getOverviewSearchResult()._registerProvider(this._extensionsSearchProvider);
+            this._registerProvider(this._extensionsSearchProvider);
         }
 
         // In case the extension has been rebased after disabling another extension,
@@ -98,8 +98,28 @@ export class ExtensionsSearchProviderModule {
         console.debug('  ExtensionsSearchProviderModule - Disabled');
     }
 
-    _getOverviewSearchResult() {
-        return Main.overview._overview.controls._searchController._searchResults;
+    _registerProvider(provider) {
+        const searchResults = Main.overview.searchController._searchResults;
+        provider.searchInProgress = false;
+
+        // insert WSP after app search but above all other providers
+        searchResults._providers.splice(1, 0, provider);
+
+        // create results display and add it to the _content
+        searchResults._ensureProviderDisplay.bind(searchResults)(provider);
+
+        // more important is to move the display up in the search view
+        // displays are at stable positions and show up when their providers have content to display
+        searchResults._content.remove_child(provider.display);
+        // put it on index 2 in case the WSP provider is also active - windows first
+        searchResults._content.insert_child_at_index(provider.display, 2);
+        // if WSP is not enabled, ESP would be bellow another provider, so reload them to move them below
+        searchResults._reloadRemoteProviders();
+    }
+
+    _unregisterProvider(provider) {
+        const searchResults = Main.overview.searchController._searchResults;
+        searchResults._unregisterProvider(provider);
     }
 }
 
