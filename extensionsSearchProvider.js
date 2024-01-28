@@ -91,7 +91,7 @@ export class ExtensionsSearchProviderModule {
 
     _disableModule() {
         if (this._extensionsSearchProvider) {
-            this._getOverviewSearchResult()._unregisterProvider(this._extensionsSearchProvider);
+            this._unregisterProvider(this._extensionsSearchProvider);
             this._extensionsSearchProvider = null;
         }
 
