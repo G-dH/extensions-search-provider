@@ -70,10 +70,22 @@ export class ExtensionsSearchProviderModule {
     }
 
     _activateModule() {
-        if (!this._extensionsSearchProvider) {
-            this._extensionsSearchProvider = new ExtensionsSearchProvider(opt);
-            this._registerProvider(this._extensionsSearchProvider);
-        }
+        // delay to ensure that all default providers are already registered
+        let delay = 0;
+        if (Main.layoutManager._startingUp)
+            delay = 2000;
+        this._enableTimeoutId = GLib.timeout_add(
+            GLib.PRIORITY_DEFAULT,
+            delay,
+            () => {
+                if (!this._extensionsSearchProvider) {
+                    this._extensionsSearchProvider = new ExtensionsSearchProvider(opt);
+                    this._registerProvider(this._extensionsSearchProvider);
+                }
+                this._enableTimeoutId = 0;
+                return GLib.SOURCE_REMOVE;
+            }
+        );
 
         // In case the extension has been rebased after disabling another extension,
         // update the search results view so the user don't lose the context
@@ -90,6 +102,10 @@ export class ExtensionsSearchProviderModule {
     }
 
     _disableModule() {
+        if (this._enableTimeoutId) {
+            GLib.source_remove(this._enableTimeoutId);
+            this._enableTimeoutId = 0;
+        }
         if (this._extensionsSearchProvider) {
             this._unregisterProvider(this._extensionsSearchProvider);
             this._extensionsSearchProvider = null;
@@ -127,6 +143,7 @@ class ExtensionsSearchProvider {
     constructor() {
         this.id = 'extensions';
         const appSystem = Shell.AppSystem.get_default();
+
         let appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
         if (!appInfo)
             appInfo = appSystem.lookup_app('org.gnome.Extensions.desktop')?.get_app_info();
