@@ -77,8 +77,8 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(
             itemFactory.getRowWidget(
-                _('Custom Command Prefix'),
-                _('Strings separated by space. The command prefix is a character/string added in front of the searched pattern, serving as both a blocker for other search providers and a command to ESP to list an all results. The default fixed command prefix is "eq//"'),
+                _('Custom Search Prefixes'),
+                _('Strings separated by space. The search prefix is a character/string added in front of the searched pattern (optionally followed by a space), serving as both a blocker for other search providers and a command to ESP to list all results instead of the default, limited to 5 results. The default fixed search prefix is "eq//"'),
                 itemFactory.newEditableEntry(),
                 'customPrefixes'
             )
@@ -96,7 +96,7 @@ export default class ESP extends ExtensionPreferences {
         optionList.push(
             itemFactory.getRowWidget(
                 _('Exclude Results From Global Search'),
-                _('Show results only if a the command prefix is used, so the ESP results do not clutter the global search'),
+                _('Show results only if a search prefix is used, so that WSP results do not clutter the global search'),
                 itemFactory.newSwitch(),
                 'excludeFromGlobalSearch'
             )
@@ -105,13 +105,13 @@ export default class ESP extends ExtensionPreferences {
         optionList.push(
             itemFactory.getRowWidget(
                 _('Sorting'),
-                _('Order of extensions in the results list'),
+                _('Order of windows in the complete list when using a search prefix alone'),
                 itemFactory.newDropDown(),
                 'resultsOrder',
                 [
                     [_('Alphabetical'), 0],
-                    [_('Alphabetical, incompatible last'), 1],
-                    [_('Alphabetical, enabled first, incompatible last'), 2],
+                    [_('Alphabetical, Incompatible last'), 1],
+                    [_('Alphabetical, Enabled first, Incompatible last'), 2],
                 ]
             )
         );
@@ -119,13 +119,13 @@ export default class ESP extends ExtensionPreferences {
         optionList.push(
             itemFactory.getRowWidget(
                 _('Show Incompatible Extensions'),
-                _('Extensions that do not support the current Shell version can be excluded from search results. The full list is the result you get when you enter just the command prefix'),
+                _('Extensions that do not support the current Shell version can be excluded from search results. The complete list is the result you obtain when entering only a search prefix'),
                 itemFactory.newDropDown(),
                 'showIncompatible',
                 [
                     [_('Hide'), 0],
                     [_('Show'), 1],
-                    [_('Show in full list'), 2],
+                    [_('Show in complete list'), 2],
                     [_('Show when prefix is used'), 3],
                 ]
             )
