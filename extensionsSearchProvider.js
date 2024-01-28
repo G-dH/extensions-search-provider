@@ -74,7 +74,7 @@ var ExtensionsSearchProviderModule = class {
             delay,
             () => {
                 if (!this._extensionsSearchProvider) {
-                    this._extensionsSearchProvider = new extensionsSearchProvider(opt);
+                    this._extensionsSearchProvider = new ExtensionsSearchProvider(opt);
                     this._registerProvider(this._extensionsSearchProvider);
                 }
                 this._enableTimeoutId = 0;
@@ -134,7 +134,7 @@ var ExtensionsSearchProviderModule = class {
     }
 };
 
-class extensionsSearchProvider {
+class ExtensionsSearchProvider {
     constructor() {
         this.id = 'extensions';
         const appSystem = Shell.AppSystem.get_default();
