@@ -17,6 +17,8 @@ import GObject from 'gi://GObject';
 import Clutter from 'gi://Clutter';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+import * as Search from 'resource:///org/gnome/shell/ui/search.js';
+import { Highlighter } from 'resource:///org/gnome/shell/misc/util.js';
 
 const ExtensionState = {
     1: 'ENABLED',
@@ -36,8 +38,9 @@ let _;
 let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
-// so it needs to be something less common
+// this prefix is also used by the V-Shell to activate this provider
 const PREFIX = 'eq//';
+const ID = 'extensions';
 
 export class ExtensionsSearchProviderModule {
     constructor(me) {
@@ -70,6 +73,10 @@ export class ExtensionsSearchProviderModule {
     }
 
     _activateModule() {
+        this._overrides = new Me.Util.Overrides();
+        this._overrides.addOverride('Highlighter', Highlighter.prototype, HighlighterOverride);
+        this._overrides.addOverride('ListSearchResult', Search.ListSearchResult.prototype, ListSearchResultOverride);
+
         // delay to ensure that all default providers are already registered
         let delay = 0;
         if (Main.layoutManager._startingUp)
@@ -111,6 +118,9 @@ export class ExtensionsSearchProviderModule {
             this._extensionsSearchProvider = null;
         }
 
+        this._overrides.removeAll();
+        this._overrides = null;
+
         console.debug('  ExtensionsSearchProviderModule - Disabled');
     }
 
@@ -118,19 +128,29 @@ export class ExtensionsSearchProviderModule {
         const searchResults = Main.overview.searchController._searchResults;
         provider.searchInProgress = false;
 
+        // _providers is the source for default result selection, so it has to match the order of displays
+        // ESP should be below WSP, but above all other providers
+        let position;
+        if (searchResults._providers[1]?.id === 'open-windows')
+            position = 2;
+        else
+            position = 1;
+
+        searchResults._providers.splice(position, 0, provider);
+
         // insert WSP after app search but above all other providers
         searchResults._providers.splice(1, 0, provider);
 
         // create results display and add it to the _content
         searchResults._ensureProviderDisplay.bind(searchResults)(provider);
 
-        // more important is to move the display up in the search view
+        // also move the display up in the search view
         // displays are at stable positions and show up when their providers have content to display
         searchResults._content.remove_child(provider.display);
-        // put it on index 2 in case the WSP provider is also active - windows first
-        searchResults._content.insert_child_at_index(provider.display, 2);
+        // put it on position 2 in case the WSP provider is also active - windows first
+        searchResults._content.insert_child_at_index(provider.display, position);
         // if WSP is not enabled, ESP would be bellow another provider, so reload them to move them below
-        searchResults._reloadRemoteProviders();
+        // searchResults._reloadRemoteProviders();
     }
 
     _unregisterProvider(provider) {
@@ -141,7 +161,7 @@ export class ExtensionsSearchProviderModule {
 
 class ExtensionsSearchProvider {
     constructor() {
-        this.id = 'extensions';
+        this.id = ID;
         const appSystem = Shell.AppSystem.get_default();
 
         let appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
@@ -161,7 +181,7 @@ class ExtensionsSearchProvider {
         this.isRemoteProvider = false;
     }
 
-    getInitialResultSet(terms/* , callback*/) {
+    getInitialResultSet(terms/* , cancelable*/) {
         const extensions = {};
         Main.extensionManager._extensions.forEach(
             e => {
@@ -186,26 +206,29 @@ class ExtensionsSearchProvider {
             }
         }
 
-        if (!prefix && opt.EXCLUDE_FROM_GLOBAL_SEARCH)
-            return new Map();
+        if (!prefix && opt.EXCLUDE_FROM_GLOBAL_SEARCH) {
+            const results = [];
+            this.resultIds = results.map(item => item.id);
+            return this.resultIds;
+        }
 
         this._listAllResults = !!prefix;
 
         // do not modify original terms
-        let termsCopy = [...terms];
+        let _terms = [...terms];
         // search for terms without prefix
-        termsCopy[0] = termsCopy[0].replace(prefix, '');
+        _terms[0] = _terms[0].replace(prefix, '');
 
         const candidates = this.extensions;
-        const _terms = [].concat(termsCopy);
 
+        this._terms = _terms;
         const term = _terms.join(' ').trim();
 
         let results = [];
         let m;
         for (let id in candidates) {
             const extension = this.extensions[id];
-            const text = extension.metadata.name + (extension.state === 1 ? 'enabled' : '') + ([6, 2].includes(extension.state) ? 'disabled' : '');
+            const text = extension.metadata.name;
             if (opt.FUZZY)
                 m = Me.Util.fuzzyMatch(term, text);
             else
@@ -231,8 +254,11 @@ class ExtensionsSearchProvider {
         if (!hideIncompatible && opt.INCOMPATIBLE_LAST)
             results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
 
-        const resultIds = results.map(item => item.id);
-        return resultIds;
+        this.resultIds = results.map(item => item.id);
+
+        this._updateHighlights();
+
+        return this.resultIds;
     }
 
     getResultMetas(resultIds/* , callback = null*/) {
@@ -299,10 +325,17 @@ class ExtensionsSearchProvider {
         return icon;
     }
 
-    createResultObject(meta) {
-        const lsr = new ListSearchResult(this, meta, this.extensions[meta.id]);
-        this.extensions[meta.id]['toggleExtension'] = lsr._toggleExtension.bind(lsr);
-        return lsr;
+    // The default highligting is done on terms change
+    // but since we are modifying the terms, the highlighting needs to be done after that
+    // On first run the result displays are not yet created,
+    // so we also need this method to be called from each result display's constructor
+    _updateHighlights() {
+        const resultIds = this.resultIds;
+        // make the highlighter global, so it can be used from the result display
+        this._highlighter = new Highlighter(this._terms);
+        resultIds.forEach(value => {
+            this.display._resultDisplays[value]?._highlightTerms(this);
+        });
     }
 
     launchSearch(terms, timeStamp) {
@@ -320,7 +353,7 @@ class ExtensionsSearchProvider {
 
     activateResult(resultId/* terms, timeStamp*/) {
         const extension = this.extensions[resultId];
-        if (Me.Util.isShiftPressed())
+        if (Me.Util.isCtrlPressed())
             this.extensions[resultId].toggleExtension(extension);
         else if (extension.hasPrefs)
             Me.Util.openPreferences(extension.metadata);
@@ -332,8 +365,14 @@ class ExtensionsSearchProvider {
             : results.slice(0, maxResults);
     }
 
-    getSubsearchResultSet(previousResults, terms/* , callback*/) {
+    getSubsearchResultSet(previousResults, terms/* , cancelable*/) {
         return this.getInitialResultSet(terms);
+    }
+
+    createResultObject(meta) {
+        const lsr = new ListSearchResult(this, meta, this.extensions[meta.id]);
+        this.extensions[meta.id]['toggleExtension'] = lsr._toggleExtension.bind(lsr);
+        return lsr;
     }
 }
 
@@ -351,6 +390,8 @@ class ListSearchResult extends St.Button {
         });
 
         this.style_class = 'list-search-result';
+        // reduce padding to compensate for button style
+        this.set_style('padding-top: 3px; padding-bottom: 3px');
 
         let content = new St.BoxLayout({
             style_class: 'list-search-result-content',
@@ -397,14 +438,17 @@ class ListSearchResult extends St.Button {
         });
         content.add_child(this._descriptionLabel);
 
-        this._highlightTerms();
-
         this.connect('destroy', () => {
             if (_toggleTimeout) {
                 GLib.source_remove(_toggleTimeout);
                 _toggleTimeout = 0;
             }
         });
+
+        this._updateState();
+
+        // The first highlight
+        this._highlightTerms(provider);
     }
 
     _toggleExtension() {
@@ -423,7 +467,7 @@ class ListSearchResult extends St.Button {
                 this.icon?.destroy();
                 this.icon = this.metaInfo['createIcon'](this.ICON_SIZE);
                 this._iconBox.set_child(this.icon);
-                this._highlightTerms();
+                this._updateState();
 
                 _toggleTimeout = 0;
                 return GLib.SOURCE_REMOVE;
@@ -440,7 +484,14 @@ class ListSearchResult extends St.Button {
         return 24;
     }
 
-    _highlightTerms() {
+    _highlightTerms(provider) {
+        let markup = provider._highlighter.highlight(this.metaInfo['name']);
+        this.label_actor.clutter_text.set_markup(markup);
+        markup = provider._highlighter.highlight(this.metaInfo['description'].split('\n')[0]);
+        this._descriptionLabel.clutter_text.set_markup(markup);
+    }
+
+    _updateState() {
         const extension = this.extension;
         const state = extension.state === 4 ? ExtensionState[this.extension.state] : '';
         const error = extension.state === 3 ? ` ERROR: ${this.extension.error}` : '';
@@ -461,6 +512,76 @@ class ListSearchResult extends St.Button {
             St.Clipboard.get_default().set_text(
                 St.ClipboardType.CLIPBOARD, this.metaInfo.clipboardText);
         }
-        Main.overview.toggle();
+        // Hold Ctrl to avoid leaving the overview
+        // when enabling / disabling an extension using a keyboard
+        if (!Me.Util.isCtrlPressed())
+            Main.overview.toggle();
     }
 });
+
+// Add highlighting of the "name" part of the result for all providers
+const ListSearchResultOverride = {
+    _highlightTerms() {
+        let markup = this._resultsView.highlightTerms(this.metaInfo['name']);
+        this.label_actor.clutter_text.set_markup(markup);
+        markup = this._resultsView.highlightTerms(this.metaInfo['description'].split('\n')[0]);
+        this._descriptionLabel.clutter_text.set_markup(markup);
+    },
+};
+
+const  HighlighterOverride = {
+    /**
+     * @param {?string[]} terms - list of terms to highlight
+     */
+    /* constructor(terms) {
+        if (!terms)
+            return;
+
+        const escapedTerms = terms
+            .map(term => Shell.util_regex_escape(term))
+            .filter(term => term.length > 0);
+
+        if (escapedTerms.length === 0)
+            return;
+
+        this._highlightRegex = new RegExp(
+            `(${escapedTerms.join('|')})`, 'gi');
+    },*/
+
+    /**
+     * Highlight all occurences of the terms defined for this
+     * highlighter in the provided text using markup.
+     *
+     * @param {string} text - text to highlight the defined terms in
+     * @returns {string}
+     */
+    highlight(text) {
+        if (!this._highlightRegex)
+            return GLib.markup_escape_text(text, -1);
+            // return GLib.markup_escape_text(` ${text}`, -1);
+
+        // add a space in front of the strings to work around the bug when highlighting matched strings using foreground-color
+        // Pango markup foreground-color doesn't apply to the first char for some reason in GNOME 42-46
+        // text = ` ${text}`;
+        let escaped = [];
+        let lastMatchEnd = 0;
+        let match;
+        while ((match = this._highlightRegex.exec(text))) {
+            if (match.index > lastMatchEnd) {
+                let unmatched = GLib.markup_escape_text(
+                    text.slice(lastMatchEnd, match.index), -1);
+                escaped.push(unmatched);
+            }
+            let matched = GLib.markup_escape_text(match[0], -1);
+            // The default highlighting by bold property causes text to be "randomly" ellipsized in cases where it's not necessary
+            // and also blurry
+            // Underscore doesn't affect label size and all looks better
+            escaped.push(`<u>${matched}</u>`);
+            lastMatchEnd = match.index + match[0].length;
+        }
+        let unmatched = GLib.markup_escape_text(
+            text.slice(lastMatchEnd), -1);
+        escaped.push(unmatched);
+        return escaped.join('');
+    },
+};
