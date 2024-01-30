@@ -1,10 +1,17 @@
 # ESP (Extensions Search Provider)
 A GNOME Shell extension that gives you access to extensions Settings through overview search.
 
-This extensions has been originally crated as a module for V-Shell extension.
+WSP is supported by the V-Shell extension which allows you to toggle the window search using the Space key in activities overview or by clicking on the dedicated icon in the dash.
 
-### Supported GNOME Shell versions
-42 - 46
+## Features
+- Supports GNOME Shell 42 - 46
+- Search for extensions from the Activities overview
+- Strict or Fuzzy match options
+- Custom search prefixes allows for isolated and complete list of extensions / results
+- Sorting options
+- Toggle extensions enabled / disabled
+- Extensions without Settings are distinguished
+- Update and compatibility indicators
 
 [<img alt="" height="100" src="https://raw.githubusercontent.com/andyholmes/gnome-shell-extensions-badge/master/get-it-on-ego.svg?sanitize=true">](https://extensions.gnome.org/extension/6721)
 
@@ -13,11 +20,10 @@ This extensions has been originally crated as a module for V-Shell extension.
 ## How to use ESP
 1.  Open the overview (press and release the Super key or trigger the hot corner)
 2.  a) Type the name of the extension you are looking for; results will be added to the global search<br>
-    b) Type `eq//`, `qqe` or ``` ` ```/`;`/`|` (usually the key above Tab) to list all installed extensions. You can continue typing the name of an extension to filter the list<br>
-    a,b) Type `enabled` to filter the results and display only the enabled extensions (note: it also includes extensions with this word in their names)<br>
+    b) Type search prefix (default `eq//`, `qqe` or ``` ` ```/`;`/`|` (usually the key above Tab)) to display complete list of installed extensions. You can continue typing the name of an extension to filter the list<br>
     Extensions without *Settings* appear with dimmed names<br>
 3.  a) Activate the search result to open extension's *Settings* window (if available)<br>
-    b) Click on the status icon to toggle the extension state between enabled and disabled (or select the result using the keyboard and activate it while holding the *Shift* key)
+    b) Click on the status icon to toggle the extension state between enabled and disabled (or select the result using the keyboard and activate it while holding the *Ctrl* key)
 
 ## Installation
 ### Installation from extensions.gnome.org
