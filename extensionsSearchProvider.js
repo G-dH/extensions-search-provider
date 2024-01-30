@@ -487,8 +487,6 @@ class ListSearchResult extends St.Button {
     _highlightTerms(provider) {
         let markup = provider._highlighter.highlight(this.metaInfo['name']);
         this.label_actor.clutter_text.set_markup(markup);
-        markup = provider._highlighter.highlight(this.metaInfo['description'].split('\n')[0]);
-        this._descriptionLabel.clutter_text.set_markup(markup);
     }
 
     _updateState() {
