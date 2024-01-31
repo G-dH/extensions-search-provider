@@ -45,10 +45,11 @@ class ESP {
     disable() {
         this._esp.update(true);
         this._esp.cleanGlobals();
+        this.Me.opt.destroy();
+        this.Me.opt = null;
         this.Me.Util.cleanGlobals();
         this.Me = null;
         this._esp = null;
-
         console.debug(`${MyExtension.metadata.name}: disabled`);
     }
 }
