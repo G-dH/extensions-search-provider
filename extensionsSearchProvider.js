@@ -86,7 +86,7 @@ export class ExtensionsSearchProviderModule {
             delay,
             () => {
                 if (!this._extensionsSearchProvider) {
-                    this._extensionsSearchProvider = new ExtensionsSearchProvider(opt);
+                    this._extensionsSearchProvider = new ExtensionsSearchProvider();
                     this._registerProvider(this._extensionsSearchProvider);
                 }
                 this._enableTimeoutId = 0;
@@ -137,9 +137,6 @@ export class ExtensionsSearchProviderModule {
             position = 1;
 
         searchResults._providers.splice(position, 0, provider);
-
-        // insert WSP after app search but above all other providers
-        searchResults._providers.splice(1, 0, provider);
 
         // create results display and add it to the _content
         searchResults._ensureProviderDisplay.bind(searchResults)(provider);
