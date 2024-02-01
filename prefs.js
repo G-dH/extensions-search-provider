@@ -112,6 +112,7 @@ export default class ESP extends ExtensionPreferences {
                     [_('Alphabetical'), 0],
                     [_('Alphabetical, Incompatible last'), 1],
                     [_('Alphabetical, Enabled first, Incompatible last'), 2],
+                    [_('Order of enabling, Incompatible last'), 3],
                 ]
             )
         );
@@ -202,7 +203,7 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(itemFactory.getRowWidget(
             _('Buy Me a Coffee'),
-            _('If you have found ESP useful, you can help me with coffee expenses'),
+            _('Enjoying ESP? Consider supporting it by buying me a coffee!'),
             itemFactory.newLinkButton('https://buymeacoffee.com/georgdh')
         ));
 

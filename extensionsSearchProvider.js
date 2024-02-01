@@ -164,13 +164,15 @@ class ExtensionsSearchProvider {
         let appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
         if (!appInfo)
             appInfo = appSystem.lookup_app('org.gnome.Extensions.desktop')?.get_app_info();
+        // A real appInfo created from a commandline has often issues with overriding get_id() method, so we use dict instead
         if (!appInfo) {
-            appInfo = Gio.AppInfo.create_from_commandline('/usr/bin/gnome-extensions-app', 'Extensions', null);
-            appInfo.get_description = () => _('Search extensions');
-            appInfo.get_name = () => _('Extensions');
-            appInfo.get_id = () => 'org.gnome.Extensions.desktop';
-            appInfo.get_icon = () => Gio.icon_new_for_string('application-x-addon');
-            appInfo.should_show = () => true;
+            appInfo = {
+                get_name: () => _('Extensions'),
+                get_id: () => 'org.gnome.Nautilus.desktop', // id of an app that is usually installed to avoid error messages
+                get_icon: () => Gio.icon_new_for_string('application-x-addon'),
+                should_show: () => true,
+                launch: () => {},
+            };
         }
 
         this.appInfo = appInfo;
@@ -244,8 +246,17 @@ class ExtensionsSearchProvider {
         results.sort((a, b) => this.extensions[a.id].metadata.name.localeCompare(this.extensions[b.id].metadata.name));
 
         // enabled first
-        if (opt.ENABLED_FIRST)
+        if (opt.ENABLED_FIRST || opt.ORDER_OF_ENABLING)
             results.sort((a, b) => this.extensions[a.id].state !== 1 && this.extensions[b.id].state === 1);
+
+        // order in which extensions have been activated
+        if (opt.ORDER_OF_ENABLING) {
+            const order = Main.extensionManager._extensionOrder;
+            results.sort((a, b) =>  {
+                const bIndex = order.indexOf(this.extensions[b.id].uuid);
+                return (bIndex > -1) && (order.indexOf(this.extensions[a.id].uuid) > bIndex);
+            });
+        }
 
         // incompatible last
         if (!hideIncompatible && opt.INCOMPATIBLE_LAST)

@@ -109,6 +109,7 @@ export const Options = class Options {
         this.CUSTOM_PREFIXES             = this.get('customPrefixes').replace(REGEXP_SPECIAL_CHAR, '\\$&').split(' ');
         this.RESULTS_ORDER               = this.get('resultsOrder');
         this.ENABLED_FIRST               = this.RESULTS_ORDER === 2;
+        this.ORDER_OF_ENABLING           = this.RESULTS_ORDER === 3;
         this.INCOMPATIBLE_LAST           = !!this.RESULTS_ORDER;
         this.EXCLUDE_FROM_GLOBAL_SEARCH  = this.get('excludeFromGlobalSearch');
         this.SHOW_INCOMPATIBLE           = this.get('showIncompatible');
