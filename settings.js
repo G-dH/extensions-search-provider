@@ -42,6 +42,7 @@ var Options = class Options {
             dashIconPosition:        ['int', 'dash-icon-position'],
             resultsOrder:            ['int', 'results-order'],
             fuzzyMatch:              ['boolean', 'fuzzy-match'],
+            reorderExtensions:       ['boolean', 'reorder-extensions'],
         };
 
         this.cachedOptions = {};
@@ -118,5 +119,6 @@ var Options = class Options {
         this.FUZZY                       = this.get('fuzzyMatch');
         this.DASH_ICON_POSITION          = this.get('dashIconPosition');
         this.DASH_ICON_HIDEN             = !this.DASH_ICON_POSITION;
+        this.REORDER_EXTENSIONS          = this.get('reorderExtensions');
     }
 };

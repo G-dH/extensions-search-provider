@@ -17,7 +17,7 @@ const Settings = MyExtension.imports.settings;
 let _;
 
 function init() {
-
+    ExtensionUtils.initTranslations(MyExtension.metadata['gettext-domain']);
 }
 
 function fillPreferencesWindow(window) {
@@ -140,6 +140,15 @@ class ESP {
                     [_('Show in complete list'), 2],
                     [_('Show when prefix is used'), 3],
                 ]
+            )
+        );
+
+        optionList.push(
+            itemFactory.getRowWidget(
+                _('Fix Glitches When Disabling Extensions (requires re-enabling ESP)'),
+                _('This option, upon ESP activation, changes the order in which extensions are enabled to minimize issues when using ESP to control other extensions. The downside of this workaround could be a slower screen unlocking when using extensions that are slow to enable or disable. However, it also depends on the original order in which extensions are being enabled and that depends on the order in which they are being read from the filesystem.\n\nContext: When you disable an extension in the GNOME Shell, the extension system first disables all extensions that were enabled after the selected one in reverse order and then, after disabling the selected one, re-enables them. If you use ESP, which is also an extension, to disable an extension that was enabled before ESP, you will experience the search results view disappearing and reappearing again with updated results, instead of just changing the status icon. This feature also reorders V-Shell extension if enabled, as its rebasing causes the overview to close.'),
+                itemFactory.newSwitch(),
+                'reorderExtensions'
             )
         );
 
