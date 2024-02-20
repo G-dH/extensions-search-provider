@@ -145,6 +145,20 @@ class ESP {
 
         optionList.push(
             itemFactory.getRowWidget(
+                _('Highlighting'),
+                _('The GNOME default highlighting style (bold) causes strings to be "randomly" ellipsized, often preventing you from seeing the whole string, even if there is space for it. The selected style will be applied to all search results globally. If you are using other extensions that offer this option, make sure you set the same setting in all of them.'),
+                itemFactory.newDropDown(),
+                'highlightingStyle',
+                [
+                    [_('Bold (GNOME Default)'), 0],
+                    [_('Underline'), 1],
+                    [_('None'), 2],
+                ]
+            )
+        );
+
+        optionList.push(
+            itemFactory.getRowWidget(
                 _('Fix Glitches When Disabling Extensions (requires re-enabling ESP)'),
                 _('This option, upon ESP activation, changes the order in which extensions are enabled to minimize issues when using ESP to control other extensions. The downside of this workaround could be a slower screen unlocking when using extensions that are slow to enable or disable. However, it also depends on the original order in which extensions are being enabled and that depends on the order in which they are being read from the filesystem.\n\nContext: When you disable an extension in the GNOME Shell, the extension system first disables all extensions that were enabled after the selected one in reverse order and then, after disabling the selected one, re-enables them. If you use ESP, which is also an extension, to disable an extension that was enabled before ESP, you will experience the search results view disappearing and reappearing again with updated results, instead of just changing the status icon. This feature also reorders V-Shell extension if enabled, as its rebasing causes the overview to close.'),
                 itemFactory.newSwitch(),
