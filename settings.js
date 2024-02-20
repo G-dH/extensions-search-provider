@@ -42,6 +42,7 @@ export const Options = class Options {
             dashIconPosition:        ['int', 'dash-icon-position'],
             resultsOrder:            ['int', 'results-order'],
             fuzzyMatch:              ['boolean', 'fuzzy-match'],
+            highlightingStyle:       ['int', 'highlighting-style'],
             reorderExtensions:       ['boolean', 'reorder-extensions'],
         };
 
@@ -119,6 +120,10 @@ export const Options = class Options {
         this.FUZZY                       = this.get('fuzzyMatch');
         this.DASH_ICON_POSITION          = this.get('dashIconPosition');
         this.DASH_ICON_HIDEN             = !this.DASH_ICON_POSITION;
+        this.HIGHLIGHTING_STYLE          = this.get('highlightingStyle');
+        this.HIGHLIGHT_DEFAULT           = this.HIGHLIGHTING_STYLE === 0;
+        this.HIGHLIGHT_UNDERLINE         = this.HIGHLIGHTING_STYLE === 1;
+        this.HIGHLIGHT_NONE              = this.HIGHLIGHTING_STYLE === 2;
         this.REORDER_EXTENSIONS          = this.get('reorderExtensions');
     }
 };
