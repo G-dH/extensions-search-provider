@@ -32,14 +32,13 @@ function init() {
 class ESP {
     enable() {
         this.metadata = MyExtension.metadata;
-        // reorder extensions to prevent ESP from rebasing when disabling other extensions
+        // Reorder extensions to prevent ESP from rebasing when disabling other extensions
         // also reorder V-Shell extension as its rebase hides the overview
-        // this option is opt-in so the user can make informed decision
-        // also recursion guards have been implemented
+        // This option is opt-in so the user can make informed decision
+        // Recursion guards have been implemented
         // in case when something external breaks the extensionOrder during reordering (only similar extension can do this)
 
-        // If reordering is successful, ESP is already enabled, so return
-        // Otherwise enable the extension as usual
+        // If reordering was successful, ESP is already enabled, so return
         if (this._reorderExtensions())
             return;
 
@@ -128,6 +127,8 @@ class ESP {
             lastMultiSessionIndex += 1;
         }
 
+        console.log(`[${this.metadata.name}]: Reordering ${extensionOrder.length - (lastMultiSessionIndex + 1)} already enabled extensions ...`);
+
         const multiSessionExtensions = [];
         for (const uuid of extensionOrderReversed) {
             const sessionModes = extensionManager.lookup(uuid).sessionModes.length;
@@ -135,6 +136,7 @@ class ESP {
             // Disable all already enabled extensions
             // except for those with more session modes at the beginning of the list
             if (index > lastMultiSessionIndex) {
+                console.log(`[${this.metadata.name}]:  Disabling ${uuid}`);
                 this._callExtensionDisable(uuid);
                 if (sessionModes > 1) {
                     // move the uuid to multi-session list
@@ -151,20 +153,22 @@ class ESP {
         if (vShellUUID)
             this._callVShellEnable(vShellUUID);
 
-
         // Re-enable the previously disabled extensions
         // First multi-session ones
         for (const uuid of multiSessionExtensions) {
+            console.log(`[${this.metadata.name}]:  Enabling ${uuid}`);
             this._callExtensionEnable(uuid);
         }
 
         // Enable ESP here. We are calling the same enable from enable, but it's handled
         // The extension manager will add ESP to _extensionOrder twice, but we will fix that later
         itIsMe = true; // Just to prevent recursion error log
+        console.log(`[${this.metadata.name}]:  Enabling ${this.metadata.uuid}`);
         this._callExtensionEnable(this.metadata.uuid);
         itIsMe = false;
 
         for (const uuid of extensionOrder) {
+            console.log(`[${this.metadata.name}]:  Enabling ${uuid}`);
             this._callExtensionEnable(uuid);
         }
 
@@ -184,6 +188,18 @@ class ESP {
 
             return GLib.SOURCE_REMOVE;
         });
+
+        // Reorder enabled-extensions key since its order is followed while unlocking screen or reenabling user-extensions
+        const enabledExtensionsKey = global.settings.get_strv('enabled-extensions');
+        enabledExtensionsKey.sort((a, b) => (b.includes(this.metadata.uuid) && a !== vShellUUID && enabledExtensionsKey.indexOf(b) > enabledExtensionsKey.indexOf(a)) || b === vShellUUID);
+        // Move extensions supporting more session modes at the beginning
+        // to minimize unnecessary disable/enable cycles during the first screen lock/unlock (default from GS 46)
+        enabledExtensionsKey.sort((a, b) => {
+            const sessionModesA = extensionManager.lookup(a)?.sessionModes || [];
+            const sessionModesB = extensionManager.lookup(b)?.sessionModes || [];
+            return sessionModesA < sessionModesB;
+        });
+        global.settings.set_strv('enabled-extensions', enabledExtensionsKey);
 
         reorderingInProgress = false;
         return true;
@@ -216,6 +232,8 @@ class ESP {
 
         if (extension.state !== ExtensionState.DISABLED)
             return;
+
+        console.log(`[${this.metadata.name}]:  Enabling ${uuid}`);
 
         extension.state = ExtensionState.ENABLING;
         extensionManager.emit('extension-state-changed', extension);
