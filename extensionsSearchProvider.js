@@ -571,7 +571,7 @@ const  HighlighterOverride = {
         let style = ['', ''];
         if (opt.HIGHLIGHT_DEFAULT)
             style = ['<b>', '</b>'];
-        // The default highlighting by bold property causes text to be "randomly" ellipsized in cases where it's not necessary
+        // The default highlighting by the bold style causes text to be "randomly" ellipsized in cases where it's not necessary
         // and also blurry
         // Underscore doesn't affect label size and all looks better
         else if (opt.HIGHLIGHT_UNDERLINE)
