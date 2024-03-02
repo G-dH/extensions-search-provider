@@ -1,0 +1,234 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR GdH
+# This file is distributed under the same license as the extensions-search-provider package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: extensions-search-provider\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-03-02 14:13+0100\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: prefs.js:26
+msgid "Options"
+msgstr ""
+
+#: prefs.js:32
+msgid "About"
+msgstr ""
+
+#: prefs.js:80
+msgid "Custom Search Prefixes"
+msgstr ""
+
+#: prefs.js:81
+msgid ""
+"Strings separated by space. The search prefix is a character/string added in "
+"front of the searched pattern (optionally followed by a space), serving as "
+"both a blocker for other search providers and a command to ESP to list all "
+"results instead of the default, limited to 5 results. The default fixed "
+"search prefix is \"eq//\""
+msgstr ""
+
+#: prefs.js:89
+msgid "Enable Fuzzy Match"
+msgstr ""
+
+#: prefs.js:90
+msgid ""
+"Enabling the fuzzy match allows you to skip letters in the pattern you are "
+"searching for and find \"V-Shell\" even if you enter \"vll\""
+msgstr ""
+
+#: prefs.js:98
+msgid "Exclude Results From Global Search"
+msgstr ""
+
+#: prefs.js:99
+msgid ""
+"Show results only if a search prefix is used, so that WSP results do not "
+"clutter the global search"
+msgstr ""
+
+#: prefs.js:107
+msgid "Sorting"
+msgstr ""
+
+#: prefs.js:108
+msgid "Order of windows in the complete list when using a search prefix alone"
+msgstr ""
+
+#: prefs.js:112
+msgid "Alphabetical"
+msgstr ""
+
+#: prefs.js:113
+msgid "Alphabetical, Incompatible last"
+msgstr ""
+
+#: prefs.js:114
+msgid "Alphabetical, Enabled first, Incompatible last"
+msgstr ""
+
+#: prefs.js:115
+msgid "Order of enabling, Incompatible last"
+msgstr ""
+
+#: prefs.js:122
+msgid "Show Incompatible Extensions"
+msgstr ""
+
+#: prefs.js:123
+msgid ""
+"Extensions that do not support the current Shell version can be excluded "
+"from search results. The complete list is the result you obtain when "
+"entering only a search prefix"
+msgstr ""
+
+#: prefs.js:127
+msgid "Hide"
+msgstr ""
+
+#: prefs.js:128
+msgid "Show"
+msgstr ""
+
+#: prefs.js:129
+msgid "Show in complete list"
+msgstr ""
+
+#: prefs.js:130
+msgid "Show when prefix is used"
+msgstr ""
+
+#: prefs.js:137
+msgid "Highlighting"
+msgstr ""
+
+#: prefs.js:138
+msgid ""
+"The GNOME default highlighting style (bold) causes strings to be "
+"\"randomly\" ellipsized, often preventing you from seeing the whole string, "
+"even if there is space for it. The selected style will be applied to all "
+"search results globally. If you are using other extensions that offer this "
+"option, make sure you set the same setting in all of them."
+msgstr ""
+
+#: prefs.js:142
+msgid "Bold (GNOME Default)"
+msgstr ""
+
+#: prefs.js:143
+msgid "Underline"
+msgstr ""
+
+#: prefs.js:144
+msgid "None"
+msgstr ""
+
+#: prefs.js:151
+msgid "Fix Glitches When Disabling Extensions (Experimental)"
+msgstr ""
+
+#: prefs.js:152
+msgid ""
+"This option, upon ESP activation, changes the order in which extensions are "
+"enabled to minimize issues when using ESP for disabling other extensions.\n"
+"\n"
+"Context: When you disable an extension in the GNOME Shell, the extension "
+"system first disables all extensions that were enabled after the selected "
+"one in reverse order and then, after disabling the selected one, re-enables "
+"them. If you use ESP, which is also an extension, to disable an extension "
+"that was enabled before ESP, you will experience the search results view "
+"disappearing and reappearing again with updated results, instead of just "
+"changing the status icon. This feature also reorders V-Shell extension if "
+"enabled, as its rebasing causes the overview to close."
+msgstr ""
+
+#: prefs.js:187
+msgid "Version"
+msgstr ""
+
+#: prefs.js:193
+msgid "Reset all options"
+msgstr ""
+
+#: prefs.js:194
+msgid "Set all options to default values."
+msgstr ""
+
+#: prefs.js:200
+msgid "Links"
+msgstr ""
+
+#: prefs.js:204
+msgid "Homepage"
+msgstr ""
+
+#: prefs.js:205
+msgid "Source code and more info about this extension"
+msgstr ""
+
+#: prefs.js:216
+msgid "GNOME Extensions"
+msgstr ""
+
+#: prefs.js:217
+msgid "Rate and comment ESP on the GNOME Extensions site"
+msgstr ""
+
+#: prefs.js:222
+msgid "Report a bug or suggest new feature"
+msgstr ""
+
+#: prefs.js:223
+msgid "Help me to help you!"
+msgstr ""
+
+#: prefs.js:228
+msgid "Buy Me a Coffee"
+msgstr ""
+
+#: prefs.js:229
+msgid "Enjoying ESP? Consider supporting it by buying me a coffee!"
+msgstr ""
+
+#: optionsFactory.js:288
+msgid "Reset profile to defaults"
+msgstr ""
+
+#: optionsFactory.js:296
+msgid "GNOME 3"
+msgstr ""
+
+#: optionsFactory.js:297
+msgid "GNOME 40+ - Bottom Hot Edge"
+msgstr ""
+
+#: optionsFactory.js:298
+msgid "Hot Corner Centric - Top Left Hot Corner"
+msgstr ""
+
+#: optionsFactory.js:299
+msgid "Dock Overview - Bottom Hot Edge"
+msgstr ""
+
+#: optionsFactory.js:321
+msgid "Load profile"
+msgstr ""
+
+#: optionsFactory.js:330
+msgid "Save current settings into this profile"
+msgstr ""
+
+#: extensionsSearchProvider.js:170
+msgid "Extensions"
+msgstr ""
