@@ -122,7 +122,7 @@ var ItemFactory = class {
         for (let i = 0; i < options.length; i++) {
             const text = options[i][0];
             const id = options[i][1];
-            model.append(new DropDownItemEsp({ text, id }));
+            model.append(new DropDownItem({ text, id }));
             if (id === currentValue)
                 widget.set_selected(i);
         }
@@ -181,7 +181,7 @@ var ItemFactory = class {
     newDropDown() {
         const dropDown = new Gtk.DropDown({
             model: new Gio.ListStore({
-                item_type: DropDownItemEsp,
+                item_type: DropDownItem,
             }),
             halign: Gtk.Align.END,
             valign: Gtk.Align.CENTER,
@@ -447,8 +447,9 @@ var AdwPrefs = class {
     }
 };
 
-const DropDownItemEsp = GObject.registerClass({
-    GTypeName: 'DropDownItemEsp',
+const DropDownItem = GObject.registerClass({
+    // Registered name should be unique
+    GTypeName: `DropDownItem${Math.floor(Math.random() * 1000)}`,
     Properties: {
         'text': GObject.ParamSpec.string(
             'text',
@@ -466,7 +467,7 @@ const DropDownItemEsp = GObject.registerClass({
             -2147483648, 2147483647, 0
         ),
     },
-}, class DropDownItemEsp extends GObject.Object {
+}, class DropDownItem extends GObject.Object {
     get text() {
         return this._text;
     }
