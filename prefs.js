@@ -191,7 +191,7 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(itemFactory.getRowWidget(
             _('Reset all options'),
-            _('Set all options to default values.'),
+            _('Reset all options to their default values'),
             itemFactory.newOptionsResetButton()
         ));
 
