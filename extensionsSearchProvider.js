@@ -445,7 +445,7 @@ class ListSearchResult extends St.Button {
             // Homepage button should be visible and clickable only if url is available
             opacity: metaInfo.canUninstall ? 255 : 0,
             reactive: metaInfo.canUninstall,
-            accessible_role: Atk.PUSH_BUTTON,
+            accessible_role: Atk.Role.PUSH_BUTTON,
         });
         uninstallBtn.connect('clicked', () => {
             if (!this._extensionUninstalled)
@@ -468,7 +468,7 @@ class ListSearchResult extends St.Button {
             // Homepage button should be visible and clickable only if url is available
             opacity: metaInfo.url ? 255 : 0,
             reactive: !!metaInfo.url,
-            accessible_role: Atk.LINK,
+            accessible_role: Atk.Role.LINK,
         });
         linkBtn.connect('clicked', () => {
             if (!this._extensionUninstalled)
@@ -482,7 +482,7 @@ class ListSearchResult extends St.Button {
         let icon = this.metaInfo['createIcon'](this.ICON_SIZE);
         let iconBox = new St.Button({
             style_class: 'esp-button',
-            accessible_role: Atk.CHECK_BOX,
+            accessible_role: Atk.Role.CHECK_BOX,
         });
         iconBox.set_child(icon);
         iconBox.connect('enter-event', () => {
