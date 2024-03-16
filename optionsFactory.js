@@ -21,7 +21,7 @@ let _;
 
 export function init(me) {
     Me = me;
-    _ = Me.gettext;
+    _ = Me._;
 }
 
 export const ItemFactory = class ItemFactory {

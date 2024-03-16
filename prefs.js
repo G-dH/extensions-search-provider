@@ -43,8 +43,8 @@ export default class ESP extends ExtensionPreferences {
         this.Me.Settings = Settings;
 
         this.Me.gSettings = this.getSettings();
-        this.Me.gettext = this.gettext.bind(this);
-        _ = this.Me.gettext;
+        this.Me._ = this.gettext.bind(this);
+        _ = this.Me._;
         this.Me.metadata = this.metadata;
 
         this.opt = new this.Me.Settings.Options(this.Me);
