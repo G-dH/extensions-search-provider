@@ -463,7 +463,7 @@ class ListSearchResult extends St.Button {
             return Clutter.EVENT_STOP;
         });
         uninstallBtn.set_child(uninstallIcon);
-        uninstallBtn.get_accessible().accessible_role = Atk.PUSH_BUTTON;
+        uninstallBtn.get_accessible().accessible_role = Atk.Role.PUSH_BUTTON;
         content.add_child(uninstallBtn);
 
         // Homepage button
@@ -479,7 +479,7 @@ class ListSearchResult extends St.Button {
             // Homepage button should be visible and clickable only if url is available
             opacity: metaInfo.url ? 255 : 0,
             reactive: !!metaInfo.url,
-            accessible_role: Atk.LINK,
+            accessible_role: Atk.Role.LINK,
         });
         linkBtn.connect('clicked', () => {
             if (!this._extensionUninstalled)
@@ -493,7 +493,7 @@ class ListSearchResult extends St.Button {
         const icon = this.metaInfo['createIcon'](this.ICON_SIZE);
         const iconBox = new St.Button({
             style_class: 'esp-button',
-            accessible_role: Atk.CHECK_BOX,
+            accessible_role: Atk.Role.CHECK_BOX,
         });
         iconBox.set_child(icon);
         iconBox.connect('enter-event', () => {
