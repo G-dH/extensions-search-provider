@@ -9,6 +9,7 @@
 
 'use strict';
 
+import Atk from 'gi://GLib';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
@@ -18,18 +19,23 @@ import Clutter from 'gi://Clutter';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 import * as Search from 'resource:///org/gnome/shell/ui/search.js';
+import * as ExtensionDownloader from 'resource:///org/gnome/shell/ui/extensionDownloader.js';
 import { Highlighter } from 'resource:///org/gnome/shell/misc/util.js';
 
-const ExtensionState = {
-    1: 'ENABLED',
-    2: 'DISABLED',
-    3: 'ERROR',
-    4: 'INCOMPATIBLE',
-    5: 'DOWNLOADING',
-    6: 'INITIALIZED',
-    7: 'DISABLING',
-    8: 'ENABLING',
+let ExtensionState;
+
+const Icon = {
+    ENABLE: 'object-select-symbolic', // 'emblem-ok-symbolic'
+    DISABLE: 'window-close-symbolic',
+    ERROR: 'dialog-error',
+    UNINSTALL: 'user-trash-symbolic',
+    UPDATE: 'software-update-available', // 'software-update-available-symbolic'
+    INCOMPATIBLE: 'software-update-urgent', // 'software-update-urgent-symbolic'
+    HOMEPAGE: 'go-home-symbolic',
+    SETTINGS: 'preferences-system-symbolic',
 };
+
+const ICON_OPACITY = 150;
 
 let Me;
 let opt;
@@ -46,12 +52,23 @@ export class ExtensionsSearchProviderModule {
     constructor(me) {
         Me = me;
         opt = Me.opt;
-        _  = Me.gettext;
+        _  = Me._;
 
         this._firstActivation = true;
         this.moduleEnabled = false;
         this._extensionsSearchProvider = null;
         this._enableTimeoutId = 0;
+
+        ExtensionState = {
+            1: _('ENABLED'),
+            2: _('DISABLED'),
+            3: _('ERROR'),
+            4: _('INCOMPATIBLE'),
+            5: _('DOWNLOADING'),
+            6: _('INITIALIZED'),
+            7: _('DISABLING'),
+            8: _('ENABLING'),
+        };
     }
 
     cleanGlobals() {
@@ -287,6 +304,8 @@ class ExtensionsSearchProvider {
             'name': `${result.metadata.name}`,
             'version': versionStr,
             'description': versionStr, // description will be updated in result object
+            'url': result.metadata.url || '',
+            'canUninstall': !result.path.startsWith('/usr/'),
             'createIcon': size => {
                 let icon = this.getIcon(result, size);
                 return icon;
@@ -296,32 +315,32 @@ class ExtensionsSearchProvider {
 
     getIcon(extension, size) {
         let opacity = 0;
-        let iconName = 'process-stop-symbolic';
+        let iconName = Icon.DISABLE;
 
         switch (extension.state) {
         case 1:
             if (extension.hasUpdate)
-                iconName = 'software-update-available'; // 'software-update-available-symbolic';
+                iconName = Icon.UPDATE;
             else
-                iconName = 'object-select-symbolic';// 'object-select-symbolic';
+                iconName = Icon.ENABLE;
 
             opacity = 255;
             break;
         case 3:
             if (Main.extensionManager._enabledExtensions.includes(extension.uuid))
-                iconName = 'emblem-ok-symbolic';
+                iconName = Icon.ENABLE;
             else
-                iconName = 'dialog-error';
+                iconName = Icon.ERROR;
             opacity = 180;
             break;
         case 4:
-            iconName = 'software-update-urgent'; // 'software-update-urgent-symbolic';
+            iconName = Icon.INCOMPATIBLE;
             opacity = 180;
             break;
         }
 
         if (extension.hasUpdate) {
-            iconName = 'software-update-available'; // 'software-update-available-symbolic';
+            iconName = Icon.UPDATE;
             opacity = 180;
         }
 
@@ -363,6 +382,8 @@ class ExtensionsSearchProvider {
         const extension = this.extensions[resultId];
         if (Me.Util.isCtrlPressed())
             this.extensions[resultId].toggleExtension(extension);
+        else if (Me.Util.isShiftPressed())
+            this.extensions[resultId].openHomepage(extension);
         else if (extension.hasPrefs)
             Me.Util.openPreferences(extension.metadata);
     }
@@ -380,6 +401,7 @@ class ExtensionsSearchProvider {
     createResultObject(meta) {
         const lsr = new ListSearchResult(this, meta, this.extensions[meta.id]);
         this.extensions[meta.id]['toggleExtension'] = lsr._toggleExtension.bind(lsr);
+        this.extensions[meta.id]['openHomepage'] = lsr._openHomepage.bind(lsr);
         return lsr;
     }
 }
@@ -410,31 +432,104 @@ class ListSearchResult extends St.Button {
         });
         this.set_child(content);
 
-        let titleBox = new St.BoxLayout({
-            style_class: 'list-search-result-title',
-            y_align: Clutter.ActorAlign.CENTER,
+        // Uninstall button
+        const uninstallIcon = new St.Icon({
+            icon_name: Icon.UNINSTALL,
+            icon_size: this.ICON_SIZE,
+            opacity: ICON_OPACITY,
         });
+        const uninstallBtn = new St.Button({
+            toggle_mode: false,
+            style_class: 'esp-button',
+            x_align: Clutter.ActorAlign.END,
+            // Homepage button should be visible and clickable only if url is available
+            opacity: metaInfo.canUninstall ? 255 : 0,
+            reactive: metaInfo.canUninstall,
+            accessible_role: Atk.PUSH_BUTTON,
+        });
+        uninstallBtn.connect('clicked', () => {
+            if (!this._extensionUninstalled)
+                this._uninstallExtension();
+            return Clutter.EVENT_STOP;
+        });
+        uninstallBtn.set_child(uninstallIcon);
+        content.add_child(uninstallBtn);
 
-        content.add_child(titleBox);
+        // Homepage button
+        const linkIcon = new St.Icon({
+            icon_name: Icon.HOMEPAGE,
+            icon_size: this.ICON_SIZE,
+            opacity: ICON_OPACITY,
+        });
+        const linkBtn = new St.Button({
+            toggle_mode: false,
+            style_class: 'esp-button',
+            x_align: Clutter.ActorAlign.END,
+            // Homepage button should be visible and clickable only if url is available
+            opacity: metaInfo.url ? 255 : 0,
+            reactive: !!metaInfo.url,
+            accessible_role: Atk.LINK,
+        });
+        linkBtn.connect('clicked', () => {
+            if (!this._extensionUninstalled)
+                this._openHomepage();
+            return Clutter.EVENT_STOP;
+        });
+        linkBtn.set_child(linkIcon);
+        content.add_child(linkBtn);
 
-        // An icon for, or thumbnail of, content
+        // Status button
         let icon = this.metaInfo['createIcon'](this.ICON_SIZE);
-        let iconBox = new St.Button();
+        let iconBox = new St.Button({
+            style_class: 'esp-button',
+            accessible_role: Atk.CHECK_BOX,
+        });
         iconBox.set_child(icon);
-        titleBox.add_child(iconBox);
-        iconBox.set_style('border: 1px solid rgba(200,200,200,0.2); padding: 2px; border-radius: 8px;');
+        iconBox.connect('enter-event', () => {
+            if (this._extensionUninstalled || extension.state === 4)
+                return;
+            this._hoverIcon = new St.Icon({
+                icon_name: [1, 3].includes(extension.state) ? Icon.DISABLE : Icon.ENABLE,
+                icon_size: this.ICON_SIZE,
+            });
+            iconBox.set_child(this._hoverIcon);
+        });
+        iconBox.connect('leave-event', () => {
+            if (this._extensionUninstalled || extension.state === 4)
+                return;
+            this.icon?.destroy();
+            this.icon = this.metaInfo['createIcon'](this.ICON_SIZE);
+            iconBox.set_child(this.icon);
+        });
+        content.add_child(iconBox);
         this._iconBox = iconBox;
         this.icon = icon;
 
-        iconBox.connect('button-press-event', () => {
-            this._toggleExtension();
+        iconBox.connect('clicked', () => {
+            if (!this._extensionUninstalled)
+                this._toggleExtension();
             return Clutter.EVENT_STOP;
         });
 
-        let title = new St.Label({
+        // Settings icon
+        const prefsIcon = new St.Icon({
+            icon_name: Icon.SETTINGS,
+            icon_size: this.ICON_SIZE,
+            style_class: 'esp-prefs',
+            opacity: extension.hasPrefs ? ICON_OPACITY : 0,
+        });
+        content.add_child(prefsIcon);
+
+        // Title label
+        const titleBox = new St.BoxLayout({
+            style_class: 'list-search-result-title',
+            y_align: Clutter.ActorAlign.CENTER,
+        });
+        content.add_child(titleBox);
+
+        const title = new St.Label({
             text: this.metaInfo['name'],
             y_align: Clutter.ActorAlign.CENTER,
-            opacity: extension.hasPrefs ? 255 : 150,
         });
         titleBox.add_child(title);
 
@@ -459,6 +554,34 @@ class ListSearchResult extends St.Button {
         this._highlightTerms(provider);
     }
 
+    _openHomepage() {
+        Main.overview.hide();
+        Gio.AppInfo.launch_default_for_uri(this.metaInfo['url'], null);
+        const appInfo = Gio.AppInfo.get_default_for_uri_scheme('http');
+        if (appInfo) {
+            const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
+            app?.activate();
+        }
+    }
+
+    _uninstallExtension() {
+        this._lastTrashClick = this._lastTrashClick ?? 0;
+        if (Date.now() - this._lastTrashClick > Clutter.Settings.get_default().double_click_time) {
+            this._lastTrashClick = Date.now();
+            return;
+        } else {
+            this._lastTrashClick = 0;
+        }
+
+        ExtensionDownloader.uninstallExtension(this.metaInfo.id);
+        this._extensionUninstalled = true;
+        this.ease({
+            duration: 400,
+            scale_x: 0,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+        });
+    }
+
     _toggleExtension() {
         const state = this.extension.state;
         if (![1, 2, 6, 3].includes(state))
@@ -467,6 +590,8 @@ class ListSearchResult extends St.Button {
         if (_toggleTimeout)
             GLib.source_remove(_toggleTimeout);
 
+        // Hide the hover icon so the user gets some feedback that they clicked the toggle
+        this._hoverIcon?.set_opacity(0);
         _toggleTimeout = GLib.timeout_add(GLib.PRIORITY_LOW, 200,
             () => {
                 if ([7, 8].includes(this.extension.state))
@@ -489,7 +614,7 @@ class ListSearchResult extends St.Button {
     }
 
     get ICON_SIZE() {
-        return 24;
+        return 20;
     }
 
     _highlightTerms(provider) {
@@ -499,9 +624,10 @@ class ListSearchResult extends St.Button {
 
     _updateState() {
         const extension = this.extension;
-        const state = extension.state === 4 ? ExtensionState[this.extension.state] : '';
-        const error = extension.state === 3 ? ` ERROR: ${this.extension.error}` : '';
-        const update = extension.hasUpdate ? ' | UPDATE PENDING' : '';
+        // const state = extension.state === 4 ? ExtensionState[this.extension.state] : '';
+        const state = ExtensionState[this.extension.state];
+        const error = extension.state === 3 ? `: ${this.extension.error}` : '';
+        const update = extension.hasUpdate ? ` | ${_('UPDATE PENDING')}` : '';
         const text = `${this.metaInfo.version}    ${state}${error}${update}`;
         let markup = text;// this.metaInfo['description'].split('\n')[0];
         this._descriptionLabel.clutter_text.set_markup(markup);
