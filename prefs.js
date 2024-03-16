@@ -33,8 +33,8 @@ class ESP {
         Me.gSettings = ExtensionUtils.getSettings(Me.metadata['settings-schema']);
         Me.Settings = Settings;
         Me.opt = new Me.Settings.Options(Me);
-        Me.gettext = imports.gettext.domain(Me.metadata['gettext-domain']).gettext;
-        _ = Me.gettext;
+        Me._ = imports.gettext.domain(Me.metadata['gettext-domain']).gettext;
+        _ = Me._;
 
         OptionsFactory.init(Me);
 

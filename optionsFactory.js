@@ -18,7 +18,7 @@ let _;
 
 function init(me) {
     Me = me;
-    _ = Me.gettext;
+    _ = Me._;
 }
 
 var ItemFactory = class {
