@@ -1,0 +1,19 @@
+/*
+* ESP (Extensions Search Provider)
+* stylesheet.css
+*/
+
+.esp-button {
+    border: 1px solid rgba(200,200,200,0.2);
+    padding: 4px;
+    border-radius: 8px;
+}
+
+.esp-button:hover {
+    background-color: rgba(180, 180, 180, 0.2);
+}
+
+.esp-prefs {
+    padding: 4px;
+    padding-right: 8px;
+}
