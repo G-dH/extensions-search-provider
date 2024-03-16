@@ -9,7 +9,7 @@
 
 'use strict';
 
-import Atk from 'gi://GLib';
+import Atk from 'gi://Atk';
 import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Gio from 'gi://Gio';
