@@ -96,7 +96,7 @@ export default class ESP extends ExtensionPreferences {
         optionList.push(
             itemFactory.getRowWidget(
                 _('Exclude Results From Global Search'),
-                _('Show results only if a search prefix is used, so that WSP results do not clutter the global search'),
+                _('Show results only if a search prefix is used, so that ESP results do not clutter the global search'),
                 itemFactory.newSwitch(),
                 'excludeFromGlobalSearch'
             )
