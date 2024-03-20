@@ -114,12 +114,13 @@ export class ExtensionsSearchProviderModule {
 
         // In case the extension has been rebased after disabling another extension,
         // update the search results view so the user don't lose the context
-        if (Main.overview._shown && Main.overview.searchEntry.text) {
-            const text = Main.overview.searchEntry.text;
-            Main.overview.searchEntry.text = 'eq///';
-            GLib.idle_add(GLib.PRIORITY_DEFAULT,
+        const searchEntry = Main.overview.searchEntry;
+        if (Main.overview._shown && searchEntry.text) {
+            const text = searchEntry.text;
+            searchEntry.text = `${PREFIX}/`;
+            GLib.idle_add(GLib.PRIORITY_LOW,
                 () => {
-                    Main.overview.searchEntry.text = text;
+                    searchEntry.text = text;
                 });
         }
 
@@ -315,9 +316,9 @@ class ExtensionsSearchProvider {
             'id': resultId,
             'name': `${result.metadata.name}`,
             'version': versionStr,
-            'description': `${result.metadata.description/* .replace(/\n/g, ' ')*/}`, // description will be updated in result object
+            'description': `${result.metadata.description}`,
             'url': result.metadata.url || '',
-            'canUninstall': !result.path.startsWith('/usr/'),
+            'canUninstall': result.path.startsWith(GLib.get_user_data_dir()),
             'createIcon': size => {
                 let icon = this.getIcon(result, size);
                 return icon;
