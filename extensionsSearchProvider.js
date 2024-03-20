@@ -33,9 +33,10 @@ const Icon = {
     INCOMPATIBLE: 'software-update-urgent', // 'software-update-urgent-symbolic'
     HOMEPAGE: 'go-home-symbolic',
     SETTINGS: 'preferences-system-symbolic',
+    INFO: 'dialog-information-symbolic',
 };
 
-const ICON_OPACITY = 150;
+const ICON_OPACITY = 255;
 
 let Me;
 let opt;
@@ -243,8 +244,8 @@ class ExtensionsSearchProvider {
         let results = [];
         let m;
         for (let id in candidates) {
-            const extension = this.extensions[id];
-            const text = extension.metadata.name;
+            const metadata = this.extensions[id].metadata;
+            const text = `${metadata.name} ${metadata.description}`;
             if (opt.FUZZY)
                 m = Me.Util.fuzzyMatch(term, text);
             else
@@ -254,25 +255,36 @@ class ExtensionsSearchProvider {
                 results.push({ weight: m, id });
         }
 
-        // filter out incompatible
+        // filter out incompatible if required
         const hideIncompatible = !opt.SHOW_INCOMPATIBLE || (!prefix && opt.INCOMPATIBLE_HIDE_GLOBAL) || (term && opt.INCOMPATIBLE_FULL_ONLY);
         if (hideIncompatible)
             results = results.filter(e => this.extensions[e.id].state !== 4);
 
-        // sort alphabetically
-        results.sort((a, b) => this.extensions[a.id].metadata.name.localeCompare(this.extensions[b.id].metadata.name));
+        // regular search should be ordered by relevance
+        if (!prefix || term) {
+            results.sort((a, b) => Me.Util.isMoreRelevant(
+                this.extensions[a.id].metadata.name,
+                this.extensions[b.id].metadata.name,
+                term)
+            );
+        } else {
+            // sort alphabetically
+            results.sort((a, b) => this.extensions[a.id].metadata.name.localeCompare(this.extensions[b.id].metadata.name));
 
-        // enabled first
-        if (opt.ENABLED_FIRST || opt.ORDER_OF_ENABLING)
-            results.sort((a, b) => this.extensions[a.id].state !== 1 && this.extensions[b.id].state === 1);
+            // enabled first
+            if (opt.ENABLED_FIRST || opt.ORDER_OF_ENABLING) {
+            // Move extensions with error behind enabled, they are also enabled by user until they disable it using ESP
+                results.sort((a, b) => this.extensions[a.id].state !== 1 && [1, 3].includes(this.extensions[b.id].state));
+            }
 
-        // order in which extensions have been activated
-        if (opt.ORDER_OF_ENABLING) {
-            const order = Main.extensionManager._extensionOrder;
-            results.sort((a, b) =>  {
-                const bIndex = order.indexOf(this.extensions[b.id].uuid);
-                return (bIndex > -1) && (order.indexOf(this.extensions[a.id].uuid) > bIndex);
-            });
+            // order in which extensions have been activated
+            if (opt.ORDER_OF_ENABLING) {
+                const order = Main.extensionManager._extensionOrder;
+                results.sort((a, b) =>  {
+                    const bIndex = order.indexOf(this.extensions[b.id].uuid);
+                    return (bIndex > -1) && (order.indexOf(this.extensions[a.id].uuid) > bIndex);
+                });
+            }
         }
 
         // incompatible last
@@ -303,7 +315,7 @@ class ExtensionsSearchProvider {
             'id': resultId,
             'name': `${result.metadata.name}`,
             'version': versionStr,
-            'description': versionStr, // description will be updated in result object
+            'description': `${result.metadata.description/* .replace(/\n/g, ' ')*/}`, // description will be updated in result object
             'url': result.metadata.url || '',
             'canUninstall': !result.path.startsWith('/usr/'),
             'createIcon': size => {
@@ -386,6 +398,8 @@ class ExtensionsSearchProvider {
             this.extensions[resultId].openHomepage(extension);
         else if (extension.hasPrefs)
             Me.Util.openPreferences(extension.metadata);
+        else
+            Main.notify(extension.metadata.name, 'This extension has no Settings window');
     }
 
     filterResults(results, maxResults) {
@@ -423,89 +437,53 @@ class ListSearchResult extends St.Button {
         // reduce padding to compensate for button style
         this.set_style('padding-top: 3px; padding-bottom: 3px');
 
-        let content = new St.BoxLayout({
+        const masterBox = new St.BoxLayout({
             style_class: 'list-search-result-content',
-            vertical: false,
-            x_align: Clutter.ActorAlign.START,
+            vertical: true,
+            // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
             x_expand: true,
             y_expand: true,
         });
-        this.set_child(content);
+        this.set_child(masterBox);
 
-        // Uninstall button
-        const uninstallIcon = new St.Icon({
-            icon_name: Icon.UNINSTALL,
-            icon_size: this.ICON_SIZE,
-            opacity: ICON_OPACITY,
+        const content = new St.BoxLayout({
+            style_class: 'list-search-result-content',
+            vertical: false,
+            // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
+            x_expand: true,
+            y_expand: true,
         });
-        const uninstallBtn = new St.Button({
-            toggle_mode: false,
-            style_class: 'esp-button',
-            x_align: Clutter.ActorAlign.END,
-            // Homepage button should be visible and clickable only if url is available
-            opacity: metaInfo.canUninstall ? 255 : 0,
-            reactive: metaInfo.canUninstall,
-            accessible_role: Atk.Role.PUSH_BUTTON,
-        });
-        uninstallBtn.connect('clicked', () => {
-            if (!this._extensionUninstalled)
-                this._uninstallExtension();
-            return Clutter.EVENT_STOP;
-        });
-        uninstallBtn.set_child(uninstallIcon);
-        content.add_child(uninstallBtn);
-
-        // Homepage button
-        const linkIcon = new St.Icon({
-            icon_name: Icon.HOMEPAGE,
-            icon_size: this.ICON_SIZE,
-            opacity: ICON_OPACITY,
-        });
-        const linkBtn = new St.Button({
-            toggle_mode: false,
-            style_class: 'esp-button',
-            x_align: Clutter.ActorAlign.END,
-            // Homepage button should be visible and clickable only if url is available
-            opacity: metaInfo.url ? 255 : 0,
-            reactive: !!metaInfo.url,
-            accessible_role: Atk.Role.LINK,
-        });
-        linkBtn.connect('clicked', () => {
-            if (!this._extensionUninstalled)
-                this._openHomepage();
-            return Clutter.EVENT_STOP;
-        });
-        linkBtn.set_child(linkIcon);
-        content.add_child(linkBtn);
+        masterBox.add_child(content);
+        this.set_child(masterBox);
 
         // Status button
-        let icon = this.metaInfo['createIcon'](this.ICON_SIZE);
-        let iconBox = new St.Button({
+        const statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
+        const statusBtn = new St.Button({
             style_class: 'esp-button',
             accessible_role: Atk.Role.CHECK_BOX,
         });
-        iconBox.set_child(icon);
-        iconBox.connect('enter-event', () => {
+        statusBtn.set_child(statusIcon);
+        statusBtn.connect('enter-event', () => {
             if (this._extensionUninstalled || extension.state === 4)
                 return;
             this._hoverIcon = new St.Icon({
                 icon_name: [1, 3].includes(extension.state) ? Icon.DISABLE : Icon.ENABLE,
                 icon_size: this.ICON_SIZE,
             });
-            iconBox.set_child(this._hoverIcon);
+            statusBtn.set_child(this._hoverIcon);
         });
-        iconBox.connect('leave-event', () => {
+        statusBtn.connect('leave-event', () => {
             if (this._extensionUninstalled || extension.state === 4)
                 return;
-            this.icon?.destroy();
-            this.icon = this.metaInfo['createIcon'](this.ICON_SIZE);
-            iconBox.set_child(this.icon);
+            this.statusIcon?.destroy();
+            this.statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
+            statusBtn.set_child(this.statusIcon);
         });
-        content.add_child(iconBox);
-        this._iconBox = iconBox;
-        this.icon = icon;
+        this._statusBtn = statusBtn;
+        this.statusIcon = statusIcon;
 
-        iconBox.connect('clicked', () => {
+        statusBtn.connect('clicked', () => {
+            this.grab_key_focus();
             if (!this._extensionUninstalled)
                 this._toggleExtension();
             return Clutter.EVENT_STOP;
@@ -515,31 +493,266 @@ class ListSearchResult extends St.Button {
         const prefsIcon = new St.Icon({
             icon_name: Icon.SETTINGS,
             icon_size: this.ICON_SIZE,
-            style_class: 'esp-prefs',
-            opacity: extension.hasPrefs ? ICON_OPACITY : 0,
+            style_class: 'esp-icon',
+            opacity: extension.hasPrefs ? 150 : 0,
         });
-        content.add_child(prefsIcon);
+
+        const infoBtn = new St.Button({
+            toggle_mode: false,
+            // style_class is set in the _updateState()
+            reactive: true,
+            accessible_role: Atk.Role.PUSH_BUTTON,
+        });
 
         // Title label
         const titleBox = new St.BoxLayout({
             style_class: 'list-search-result-title',
             y_align: Clutter.ActorAlign.CENTER,
+            reactive: true,
+            x_expand: true,
         });
-        content.add_child(titleBox);
 
         const title = new St.Label({
             text: this.metaInfo['name'],
             y_align: Clutter.ActorAlign.CENTER,
         });
+        // Disable ellipsize for the title so it can't be ellispized
+        // because of use of filling widget which forces
+        // the search results to set to their maximum size when created
+        title.clutter_text.set({
+            ellipsize: 0,
+        });
         titleBox.add_child(title);
+        this._titleLabel = title;
 
-        this.label_actor = title;
+        // Version label
+        const versionLabel = new St.Label({
+            text: metaInfo.version,
+            style_class: metaInfo.version ? 'esp-button' : '',
+            y_align: Clutter.ActorAlign.CENTER,
+            // visible: false,
+            opacity: 180,
+        });
+        this._versionLabel = versionLabel;
+        titleBox.add_child(versionLabel);
 
-        this._descriptionLabel = new St.Label({
+        // Force full width on first allocation
+        const fillingWidget = new St.Label({
+            text: '                                                                                                                                                                                                                                                        ',
+            opacity: 0,
+            x_expand: true,
+        });
+
+        // Info icon
+        const infoIcon = new St.Icon({
+            icon_name: Icon.INFO,
+            icon_size: this.ICON_SIZE,
+            opacity: ICON_OPACITY,
+        });
+
+        infoBtn.set_child(infoIcon);
+
+        infoBtn.connect('clicked', () => {
+            this.grab_key_focus();
+
+            // Create on demand
+            if (!this._infoBox) {
+                this._infoBox = new St.BoxLayout({
+                    vertical: true,
+                    x_expand: true,
+                    visible: false,
+                    opacity: 220,
+                });
+                masterBox.add_child(this._infoBox);
+            }
+
+            // Error label
+            if (this.extension.error && !this._errorLabel) {
+                this._errorLabel = new St.Label({
+                    style_class: 'esp-error',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                    can_focus: true,
+                    reactive: true,
+                });
+                this._errorLabel.clutter_text.set({
+                    ellipsize: 0,
+                    line_wrap: true,
+                    text: `<b>${ExtensionState[3]/* ERROR*/}:</b>  ${this.extension.error}`,
+                    use_markup: true,
+                });
+                this._errorLabel.connect('button-press-event', () => true);
+
+                this._infoBox.insert_child_at_index(this._errorLabel, 0);
+            }
+
+            // Description label
+            if (!this._descriptionLabel) {
+                const descriptionBtn = new St.Button({
+                    style_class: 'esp-info-box-button',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                descriptionBtn.connect('button-press-event', () => true);
+
+                this._descriptionLabel = new St.Label({
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                this._descriptionLabel.clutter_text.set({
+                    ellipsize: 0,
+                    line_wrap: true,
+                });
+                this._highlightTerms(this.provider);
+                descriptionBtn.set_child(this._descriptionLabel);
+                this._infoBox.add_child(descriptionBtn);
+
+                // Homepage button
+                const linkLabel = new St.Label({
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                linkLabel.clutter_text.set_markup(`<b>Homepage:</b>  ${this.metaInfo.url}`);
+
+                const linkBtn = new St.Button({
+                    style_class: 'esp-info-box-button',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                    can_focus: true,
+                });
+
+                linkBtn.connect('clicked', () => this._openHomepage());
+
+                linkBtn.set_child(linkLabel);
+                this._infoBox.add_child(linkBtn);
+
+                // UUID label
+                const uuidBtn = new St.Button({
+                    style_class: 'esp-info-box-button',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                const uuidLabel = new St.Label({
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                uuidLabel.clutter_text.set_markup(`<b>${_('UUID')}:</b>  ${this.metaInfo.id}`);
+
+                uuidBtn.connect('clicked', () => this._openMetadata());
+
+                uuidBtn.set_child(uuidLabel);
+                this._infoBox.add_child(uuidBtn);
+
+                // Path label
+                const pathBtn = new St.Button({
+                    style_class: 'esp-info-box-button',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                    can_focus: true,
+                });
+                const pathLabel = new St.Label({
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                pathLabel.clutter_text.set_markup(`<b>${_('Path')}:</b>  ${this.extension.path}`);
+
+                pathBtn.connect('clicked', () => this._openPath());
+
+                pathBtn.set_child(pathLabel);
+                this._infoBox.add_child(pathBtn);
+
+                // Schema label
+                const schemaBtn = new St.Button({
+                    style_class: 'esp-info-box-button',
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                    can_focus: true,
+                });
+                const schemaLabel = new St.Label({
+                    y_align: Clutter.ActorAlign.CENTER,
+                    x_expand: true,
+                });
+                schemaLabel.clutter_text.set_markup(`<b>${_('Schema')}:</b>  ${this.extension.metadata['settings-schema']}`);
+
+                schemaBtn.connect('clicked', () => this._openSchema());
+
+                schemaBtn.set_child(schemaLabel);
+                this._infoBox.add_child(schemaBtn);
+            }
+
+            const visible = this._infoBox.visible;
+            this._infoBox.visible = true;
+            this._infoBox.scale_y = visible ? 1 : 0;
+            this._infoBox.ease({
+                scale_y: visible ? 0 : 1,
+                duration: 100,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    this._infoBox.visible = !visible;
+                },
+            });
+
+            this._statusLabel.scale_y = visible ? 1 : 0;
+            this._statusLabel.visible = true;
+            this._statusLabel.ease({
+                scale_y: visible ? 0 : 1,
+                duration: 100,
+                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+                onComplete: () => {
+                    this._statusLabel.visible = !visible;
+                },
+            });
+        });
+
+        this._infoBtn = infoBtn;
+
+        // Status label
+        this._statusLabel = new St.Label({
             style_class: 'list-search-result-description',
             y_align: Clutter.ActorAlign.CENTER,
+            visible: false,
         });
-        content.add_child(this._descriptionLabel);
+
+        const controlsBox = new St.BoxLayout({
+            style_class: 'list-search-result-content',
+            vertical: false,
+            x_align: Clutter.ActorAlign.END,
+            x_expand: true,
+            y_expand: true,
+            reactive: true,
+        });
+        controlsBox.connect('button-press-event', () => true);
+
+
+        // Uninstall button
+        const uninstallIcon = new St.Icon({
+            icon_name: Icon.UNINSTALL,
+            icon_size: this.ICON_SIZE,
+            opacity: ICON_OPACITY,
+        });
+        const uninstallBtn = new St.Button({
+            toggle_mode: false,
+            style_class: 'esp-button-trash',
+            // Uninstall button should be visible and clickable only if installed in userspace
+            opacity: metaInfo.canUninstall ? 255 : 0,
+            reactive: metaInfo.canUninstall,
+        });
+        uninstallBtn.connect('clicked', () => {
+            if (!this._extensionUninstalled)
+                this._uninstallExtension();
+            return Clutter.EVENT_STOP;
+        });
+        uninstallBtn.set_child(uninstallIcon);
+        uninstallBtn.get_accessible().accessible_role = Atk.Role.PUSH_BUTTON;
+
+        content.add_child(statusBtn);
+        content.add_child(titleBox);
+        content.add_child(fillingWidget);
+        content.add_child(this._statusLabel);
+        content.add_child(prefsIcon);
+        controlsBox.add_child(infoBtn);
+        controlsBox.add_child(uninstallBtn);
+        content.add_child(controlsBox);
 
         this.connect('destroy', () => {
             if (_toggleTimeout) {
@@ -554,6 +767,25 @@ class ListSearchResult extends St.Button {
         this._highlightTerms(provider);
     }
 
+    _openMetadata() {
+        Main.overview.hide();
+        Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}/metadata.json`, null);
+        let appInfo = Gio.AppInfo.get_default_for_type('application/json', false);
+        if (appInfo) {
+            const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
+            app?.activate();
+        } else {
+            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, this.metaInfo.id);
+            St.Clipboard.get_default().set_text(St.ClipboardType.PRIMARY, this.metaInfo.id);
+            Main.notify('UUID has been copied to the clipboard', this.metaInfo.id);
+        }
+    }
+
+    _openPath() {
+        Main.overview.hide();
+        Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}`, null);
+    }
+
     _openHomepage() {
         Main.overview.hide();
         Gio.AppInfo.launch_default_for_uri(this.metaInfo['url'], null);
@@ -562,6 +794,25 @@ class ListSearchResult extends St.Button {
             const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
             app?.activate();
         }
+    }
+
+    _openSchema() {
+        // Open schema in dconf-Editor if available
+        const schemaPath = `/${this.extension.metadata['settings-schema'].replace(/\./g, '/')}`;
+        let appInfo = Shell.AppSystem.get_default().lookup_app('ca.desrt.dconf-editor.desktop');
+        const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
+        Main.overview.hide();
+        if (app) {
+            // If dconf-Editor is already open, we cannot change the schema it is displaying,
+            // so copy the path to the clipboard so the user can paste it to the path field manually
+            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, schemaPath);
+            St.Clipboard.get_default().set_text(St.ClipboardType.PRIMARY, schemaPath);
+            Main.notify('Schema has been copied to the clipboard', schemaPath);
+        } else {
+            appInfo = Gio.AppInfo.create_from_commandline(`/usr/bin/dconf-editor ${schemaPath}`, 'dconf-Editor', null);
+            appInfo?.launch([], global.create_app_launch_context(global.get_current_time(), -1));
+        }
+        app?.activate();
     }
 
     _uninstallExtension() {
@@ -576,9 +827,12 @@ class ListSearchResult extends St.Button {
         ExtensionDownloader.uninstallExtension(this.metaInfo.id);
         this._extensionUninstalled = true;
         this.ease({
-            duration: 400,
+            duration: 250,
             scale_x: 0,
             mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                this.scale_y = 0;
+            },
         });
     }
 
@@ -597,9 +851,9 @@ class ListSearchResult extends St.Button {
                 if ([7, 8].includes(this.extension.state))
                     return GLib.SOURCE_CONTINUE;
 
-                this.icon?.destroy();
-                this.icon = this.metaInfo['createIcon'](this.ICON_SIZE);
-                this._iconBox.set_child(this.icon);
+                this.statusIcon?.destroy();
+                this.statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
+                this._statusBtn.set_child(this.statusIcon);
                 this._updateState();
 
                 _toggleTimeout = 0;
@@ -614,23 +868,39 @@ class ListSearchResult extends St.Button {
     }
 
     get ICON_SIZE() {
-        return 20;
+        return 16;
     }
 
     _highlightTerms(provider) {
-        let markup = provider._highlighter.highlight(this.metaInfo['name']);
-        this.label_actor.clutter_text.set_markup(markup);
+        let markup = provider._highlighter.highlight(this.metaInfo['name'], opt);
+
+        // clutter_text.set_markup(markup)
+        // should essentially do this two steps:
+        // clutter_text.set_text(markup)
+        // clutter_text.set_use_markup(true)
+        // In practice, the first (convenience) function, when used repeatedly on the same St.Label,
+        // acts as if it is one step behind. Each update of the same string with a different markup
+        // shows the previous markup in the label. We can simply call the function twice,
+        // or we can use the two separate functions to fix it.
+        // Seems like this issue is related to disabled ellipsization
+        this._titleLabel.clutter_text.set_text(markup);
+        this._titleLabel.clutter_text.set_use_markup(true);
+        if (this._descriptionLabel) {
+            markup = provider._highlighter.highlight(this.metaInfo['description'], opt);
+            // markup = `<b>${_('Description')}:</b> ${markup}`;
+            this._descriptionLabel.clutter_text.set_text(markup);
+            this._descriptionLabel.clutter_text.set_use_markup(true);
+        }
     }
 
     _updateState() {
         const extension = this.extension;
         // const state = extension.state === 4 ? ExtensionState[this.extension.state] : '';
         const state = ExtensionState[this.extension.state];
-        const error = extension.state === 3 ? `: ${this.extension.error}` : '';
-        const update = extension.hasUpdate ? ` | ${_('UPDATE PENDING')}` : '';
-        const text = `${this.metaInfo.version}    ${state}${error}${update}`;
-        let markup = text;// this.metaInfo['description'].split('\n')[0];
-        this._descriptionLabel.clutter_text.set_markup(markup);
+        const update = extension.hasUpdate ? `${_('UPDATE PENDING')} | ` : '';
+        const text = `${update}${state}`;
+        this._statusLabel.text = text;// this.metaInfo['description'].split('\n')[0];
+        this._infoBtn.set_style_class_name(extension.state === 3 ? 'esp-info-button-alert' : 'esp-info-button');
     }
 
     vfunc_clicked() {
@@ -687,20 +957,22 @@ const  HighlighterOverride = {
      * @param {string} text - text to highlight the defined terms in
      * @returns {string}
      */
-    highlight(text) {
+    highlight(text, options) {
         if (!this._highlightRegex)
             return GLib.markup_escape_text(text, -1);
 
+        // force use local settings if the class is overridden by another extension (V-Shell, WSP)
+        const o = options || opt;
         let escaped = [];
         let lastMatchEnd = 0;
         let match;
         let style = ['', ''];
-        if (opt.HIGHLIGHT_DEFAULT)
+        if (o.HIGHLIGHT_DEFAULT)
             style = ['<b>', '</b>'];
         // The default highlighting by the bold style causes text to be "randomly" ellipsized in cases where it's not necessary
         // and also blurry
         // Underscore doesn't affect label size and all looks better
-        else if (opt.HIGHLIGHT_UNDERLINE)
+        else if (o.HIGHLIGHT_UNDERLINE)
             style = ['<u>', '</u>'];
 
         while ((match = this._highlightRegex.exec(text))) {

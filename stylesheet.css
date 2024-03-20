@@ -3,17 +3,53 @@
 * stylesheet.css
 */
 
-.esp-button {
+.esp-button,
+.esp-info-button,
+.esp-info-button-alert,
+.esp-button-alert,
+.esp-button-trash {
     border: 1px solid rgba(200,200,200,0.2);
     padding: 4px;
     border-radius: 8px;
 }
 
-.esp-button:hover {
+.esp-info-button,
+.esp-info-button-alert {
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.esp-button-alert,
+.esp-info-button-alert,
+.esp-button-trash:hover {
+    color: red;
+}
+
+.esp-button:hover,
+.esp-button-trash:hover {
     background-color: rgba(180, 180, 180, 0.2);
 }
 
-.esp-prefs {
+.esp-icon {
     padding: 4px;
-    padding-right: 8px;
+}
+
+.esp-info-box-button,
+.esp-error {
+    padding: 8px;
+    border-radius: 8px;
+    word-wrap: break-word;
+    text-align: left;
+    overflow: hidden;
+    margin-top: 4px;
+    border: 1px solid rgba(200,200,200,0.2);
+    background-color: rgba(20, 20, 20, 0.2);
+}
+
+.esp-info-box-button:hover {
+    background-color: rgba(20, 20, 20, 0.5);
+}
+
+.esp-error {
+    background-color: rgba(200, 0, 0, 0.7);
 }

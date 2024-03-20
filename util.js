@@ -216,8 +216,16 @@ export function strictMatch(term, text) {
 
 export function isMoreRelevant(stringA, stringB, pattern) {
     let regex = /[^a-zA-Z\d]/;
-    let strSplitA = stringA.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(regex);
-    let strSplitB = stringB.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().split(regex);
+    let strA = stringA.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let strB = stringB.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    let strSplitA = strA.split(regex);
+    let strSplitB = strB.split(regex);
+
+    if (!strA.includes(pattern) && strB.includes(pattern))
+        return true;
+    else if (!strA.includes(pattern) && !strB.includes(pattern))
+        return false;
+
     let aAny = false;
     strSplitA.forEach(w => {
         aAny = aAny || w.startsWith(pattern);
