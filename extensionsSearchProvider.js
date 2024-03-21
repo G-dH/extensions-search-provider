@@ -709,7 +709,7 @@ class ListSearchResult extends St.Button {
                     y_align: Clutter.ActorAlign.CENTER,
                     x_expand: true,
                 });
-                readmeLabel.clutter_text.set_markup(`<b>${_('README')}:</b>  ${readmePath/* .replace(/\/.*\//, '')*/}`);
+                readmeLabel.clutter_text.set_markup(`<b>${_('README')}:</b>  ./${readmePath.replace(/\/.*\//, '')}`);
 
                 readmeBtn.connect('clicked', () => this._openREADME(readmePath));
 
@@ -898,6 +898,11 @@ class ListSearchResult extends St.Button {
     }
 
     _toggleExtension() {
+        if (this.metaInfo.id === Me.metadata.uuid) {
+            Main.notify(Me.metadata.name, _('Suicide is not allowed, please use another way to disable ESP'));
+            return;
+        }
+
         const state = this.extension.state;
         if (![1, 2, 6, 3].includes(state))
             return;
