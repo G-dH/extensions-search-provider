@@ -265,6 +265,8 @@ class ExtensionsSearchProvider {
 
         // regular search should be ordered by relevance
         if (!prefix || term) {
+            // prefer compatible extensions if relevance is the same
+            results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
             results.sort((a, b) => Me.Util.isMoreRelevant(
                 this.extensions[a.id].metadata.name,
                 this.extensions[b.id].metadata.name,
@@ -288,11 +290,11 @@ class ExtensionsSearchProvider {
                     return (bIndex > -1) && (order.indexOf(this.extensions[a.id].uuid) > bIndex);
                 });
             }
-        }
 
-        // incompatible last
-        if (!hideIncompatible && opt.INCOMPATIBLE_LAST)
-            results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
+            // incompatible last
+            if (!hideIncompatible && opt.INCOMPATIBLE_LAST)
+                results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
+        }
 
         this.resultIds = results.map(item => item.id);
 
