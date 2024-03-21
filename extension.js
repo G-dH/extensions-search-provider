@@ -68,6 +68,10 @@ export default class ESP extends Extension.Extension {
     }
 
     async _reorderExtensions() {
+        // Main.overview._shown likely indicates that the extension is being enabled from another ESP
+        if (Main.overview._shown)
+            return false;
+
         // This function is called before initialization of Settings module
         const settings = this.getSettings();
         const reorderEnabled = settings.get_boolean('reorder-extensions');

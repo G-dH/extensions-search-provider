@@ -885,6 +885,11 @@ class ListSearchResult extends St.Button {
     }
 
     _toggleExtension() {
+        if (this.metaInfo.id === Me.metadata.uuid) {
+            Main.notify(Me.metadata.name, _('Suicide is not allowed, please use another way to disable ESP'));
+            return;
+        }
+
         const state = this.extension.state;
         if (![1, 2, 6, 3].includes(state))
             return;
