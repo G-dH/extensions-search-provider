@@ -263,7 +263,9 @@ class ExtensionsSearchProvider {
 
         // regular search should be ordered by relevance
         if (!prefix || term) {
-            // prefer compatible extensions if relevance is the same
+            // prefer enabled extensions when relevance is equal
+            results.sort((a, b) => this.extensions[a.id].state !== 1 && [1, 3].includes(this.extensions[b.id].state));
+            // prefer compatible extensions when relevance is equal
             results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
             results.sort((a, b) => Me.Util.isMoreRelevant(
                 this.extensions[a.id].metadata.name,
@@ -397,10 +399,13 @@ class ExtensionsSearchProvider {
 
     activateResult(resultId/* terms, timeStamp*/) {
         const extension = this.extensions[resultId];
-        if (Me.Util.isCtrlPressed())
-            this.extensions[resultId].toggleExtension(extension);
+        const row = extension._resultRow;
+        if (Me.Util.isCtrlPressed() && Me.Util.isShiftPressed())
+            row._openInstallDir.bind(row)();
+        else if (Me.Util.isCtrlPressed())
+            row._toggleExtension.bind(row)(extension);
         else if (Me.Util.isShiftPressed())
-            this.extensions[resultId].openHomepage(extension);
+            row._toggleInfoBox.bind(row)();
         else if (extension.hasPrefs)
             Me.Util.openPreferences(extension.metadata);
         else
@@ -419,8 +424,7 @@ class ExtensionsSearchProvider {
 
     createResultObject(meta) {
         const lsr = new ListSearchResult(this, meta, this.extensions[meta.id]);
-        this.extensions[meta.id]['toggleExtension'] = lsr._toggleExtension.bind(lsr);
-        this.extensions[meta.id]['openHomepage'] = lsr._openHomepage.bind(lsr);
+        this.extensions[meta.id]['_resultRow'] = lsr;
         return lsr;
     }
 }
@@ -459,6 +463,7 @@ class ListSearchResult extends St.Button {
             y_expand: true,
         });
         masterBox.add_child(content);
+        this._masterBox = masterBox;
         this.set_child(masterBox);
 
         // Status button
@@ -559,176 +564,7 @@ class ListSearchResult extends St.Button {
 
         infoBtn.connect('clicked', () => {
             this.grab_key_focus();
-
-            // Create on demand
-            if (!this._infoBox) {
-                this._infoBox = new St.BoxLayout({
-                    style_class: 'esp-info-box',
-                    vertical: true,
-                    x_expand: true,
-                    visible: false,
-                    opacity: 220,
-                });
-                masterBox.add_child(this._infoBox);
-            }
-
-            // Error label
-            if (this.extension.error && !this._errorLabel) {
-                this._errorLabel = new St.Label({
-                    style_class: 'esp-error',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    can_focus: true,
-                    reactive: true,
-                });
-                this._errorLabel.clutter_text.set({
-                    ellipsize: 0,
-                    line_wrap: true,
-                    text: `<b>${ExtensionState[3]/* ERROR*/}:</b>  ${this.extension.error}`,
-                    use_markup: true,
-                });
-                this._errorLabel.connect('button-press-event', () => true);
-
-                this._infoBox.insert_child_at_index(this._errorLabel, 0);
-            }
-
-            // Description label
-            if (!this._descriptionLabel) {
-                const descriptionBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                descriptionBtn.connect('button-press-event', () => true);
-
-                this._descriptionLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                this._descriptionLabel.clutter_text.set({
-                    ellipsize: 0,
-                    line_wrap: true,
-                });
-                this._highlightTerms(this.provider);
-                descriptionBtn.set_child(this._descriptionLabel);
-                this._infoBox.add_child(descriptionBtn);
-
-                // Homepage button
-                const linkBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    can_focus: true,
-                });
-                linkBtn.connect('clicked', () => this._openHomepage());
-
-                const linkLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    visible: !!this.metaInfo.url,
-                });
-                linkLabel.clutter_text.set_markup(`<b>Homepage:</b>  ${this.metaInfo.url}`);
-
-                linkBtn.set_child(linkLabel);
-                this._infoBox.add_child(linkBtn);
-
-                // UUID label
-                const uuidBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                const uuidLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                uuidLabel.clutter_text.set_markup(`<b>${_('UUID')}:</b>  ${this.metaInfo.id}`);
-
-                uuidBtn.connect('clicked', () => this._openMetadata());
-
-                uuidBtn.set_child(uuidLabel);
-                this._infoBox.add_child(uuidBtn);
-
-                // Path label
-                const pathBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    can_focus: true,
-                });
-                const pathLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                pathLabel.clutter_text.set_markup(`<b>${_('Path')}:</b>  ${this.extension.path}`);
-                pathBtn.connect('clicked', () => this._openPath());
-
-                pathBtn.set_child(pathLabel);
-                this._infoBox.add_child(pathBtn);
-
-                // Schema label
-                const schema = this.extension.metadata['settings-schema'];
-                const schemaBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    can_focus: true,
-                    visible: !!schema,
-                });
-                const schemaLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                schemaLabel.clutter_text.set_markup(`<b>${_('Schema')}:</b>  ${schema}`);
-
-                schemaBtn.connect('clicked', () => this._openSchema());
-
-                schemaBtn.set_child(schemaLabel);
-                this._infoBox.add_child(schemaBtn);
-
-                // Readme button
-                const readmePath = this._findREADME()[0] || '';
-                const readmeBtn = new St.Button({
-                    style_class: 'esp-info-box-button',
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                    can_focus: true,
-                    visible: !!readmePath,
-                });
-                const readmeLabel = new St.Label({
-                    y_align: Clutter.ActorAlign.CENTER,
-                    x_expand: true,
-                });
-                readmeLabel.clutter_text.set_markup(`<b>${_('README')}:</b>  ${readmePath.replace(/\/.*\//, '')}`);
-
-                readmeBtn.connect('clicked', () => this._openREADME(readmePath));
-
-                readmeBtn.set_child(readmeLabel);
-                this._infoBox.add_child(readmeBtn);
-            }
-
-            const visible = this._infoBox.visible;
-            this._infoBox.visible = true;
-            this._infoBox.scale_y = visible ? 1 : 0;
-            this._infoBox.ease({
-                scale_y: visible ? 0 : 1,
-                duration: 100,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                onComplete: () => {
-                    this._infoBox.visible = !visible;
-                },
-            });
-
-            this._statusLabel.scale_y = visible ? 1 : 0;
-            this._statusLabel.visible = true;
-            this._statusLabel.ease({
-                scale_y: visible ? 0 : 1,
-                duration: 100,
-                mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-                onComplete: () => {
-                    this._statusLabel.visible = !visible;
-                },
-            });
+            this._toggleInfoBox();
         });
 
         this._infoBtn = infoBtn;
@@ -794,6 +630,179 @@ class ListSearchResult extends St.Button {
         this._highlightTerms(provider);
     }
 
+    _toggleInfoBox() {
+        // Create on demand
+        if (!this._infoBox) {
+            this._infoBox = new St.BoxLayout({
+                vertical: true,
+                x_expand: true,
+                visible: false,
+                opacity: 220,
+            });
+            this._masterBox.add_child(this._infoBox);
+        }
+
+        // Error label
+        if (this.extension.error && !this._errorLabel) {
+            this._errorLabel = new St.Label({
+                style_class: 'esp-error',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                can_focus: true,
+                reactive: true,
+            });
+            this._errorLabel.clutter_text.set({
+                ellipsize: 0,
+                line_wrap: true,
+                text: `<b>${ExtensionState[3]/* ERROR*/}:</b>  ${this.extension.error}`,
+                use_markup: true,
+            });
+            this._errorLabel.connect('button-press-event', () => true);
+
+            this._infoBox.insert_child_at_index(this._errorLabel, 0);
+        }
+
+        // Description label
+        if (!this._descriptionLabel) {
+            const descriptionBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            descriptionBtn.connect('button-press-event', () => true);
+
+            this._descriptionLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            this._descriptionLabel.clutter_text.set({
+                ellipsize: 0,
+                line_wrap: true,
+            });
+            this._highlightTerms(this.provider);
+            descriptionBtn.set_child(this._descriptionLabel);
+            this._infoBox.add_child(descriptionBtn);
+
+            // Homepage button
+            const linkLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                visible: !!this.metaInfo.url,
+            });
+            linkLabel.clutter_text.set_markup(`<b>Homepage:</b>  ${this.metaInfo.url}`);
+
+            const linkBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                can_focus: true,
+            });
+
+            linkBtn.connect('clicked', () => this._openHomepage());
+
+            linkBtn.set_child(linkLabel);
+            this._infoBox.add_child(linkBtn);
+
+            // UUID label
+            const uuidBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            const uuidLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            uuidLabel.clutter_text.set_markup(`<b>${_('UUID')}:</b>  ${this.metaInfo.id}`);
+
+            uuidBtn.connect('clicked', () => this._openMetadata());
+
+            uuidBtn.set_child(uuidLabel);
+            this._infoBox.add_child(uuidBtn);
+
+            // Path label
+            const pathBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                can_focus: true,
+            });
+            const pathLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            pathLabel.clutter_text.set_markup(`<b>${_('Path')}:</b>  ${this.extension.path}`);
+
+            pathBtn.connect('clicked', () => this._openInstallDir());
+
+            pathBtn.set_child(pathLabel);
+            this._infoBox.add_child(pathBtn);
+
+            // Schema label
+            const schema = this.extension.metadata['settings-schema'];
+            const schemaBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                can_focus: true,
+                visible: !!schema,
+            });
+            const schemaLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            schemaLabel.clutter_text.set_markup(`<b>${_('Schema')}:</b>  ${schema}`);
+
+            schemaBtn.connect('clicked', () => this._openSchema());
+
+            schemaBtn.set_child(schemaLabel);
+            this._infoBox.add_child(schemaBtn);
+
+            // Readme button
+            const readmePath = this._findREADME()[0] || '';
+            const readmeBtn = new St.Button({
+                style_class: 'esp-info-box-button',
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+                can_focus: true,
+                visible: !!readmePath,
+            });
+            const readmeLabel = new St.Label({
+                y_align: Clutter.ActorAlign.CENTER,
+                x_expand: true,
+            });
+            readmeLabel.clutter_text.set_markup(`<b>${_('README')}:</b>  ./${readmePath.replace(/\/.*\//, '')}`);
+
+            readmeBtn.connect('clicked', () => this._openREADME(readmePath));
+
+            readmeBtn.set_child(readmeLabel);
+            this._infoBox.add_child(readmeBtn);
+        }
+
+        const visible = this._infoBox.visible;
+        this._infoBox.visible = true;
+        this._infoBox.scale_y = visible ? 1 : 0;
+        this._infoBox.ease({
+            scale_y: visible ? 0 : 1,
+            duration: 100,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                this._infoBox.visible = !visible;
+            },
+        });
+
+        this._statusLabel.scale_y = visible ? 1 : 0;
+        this._statusLabel.visible = true;
+        this._statusLabel.ease({
+            scale_y: visible ? 0 : 1,
+            duration: 100,
+            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
+            onComplete: () => {
+                this._statusLabel.visible = !visible;
+            },
+        });
+    }
+
     _openMetadata() {
         Main.overview.hide();
         Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}/metadata.json`, null);
@@ -808,7 +817,7 @@ class ListSearchResult extends St.Button {
         }
     }
 
-    _openPath() {
+    _openInstallDir() {
         Main.overview.hide();
         Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}`, null);
     }
@@ -969,9 +978,8 @@ class ListSearchResult extends St.Button {
             St.Clipboard.get_default().set_text(
                 St.ClipboardType.CLIPBOARD, this.metaInfo.clipboardText);
         }
-        // Hold Ctrl to avoid leaving the overview
-        // when enabling / disabling an extension using a keyboard
-        if (!Me.Util.isCtrlPressed())
+        // Prevent closing overview here if user activated special action
+        if (!Me.Util.isCtrlPressed() && !Me.Util.isShiftPressed())
             Main.overview.toggle();
     }
 });
