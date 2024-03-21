@@ -3,6 +3,10 @@
 * stylesheet.css
 */
 
+.list-search-results {
+    spacing: 2px;
+}
+
 .esp-button,
 .esp-info-button,
 .esp-info-button-alert,
