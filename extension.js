@@ -221,7 +221,7 @@ class ESP {
         try {
             Main.extensionManager.lookup(uuid).stateObj.enable();
         } catch (e) {
-            Main.extensionManager.bind(Main.extensionManager).logExtensionError(uuid, e);
+            Main.extensionManager.logExtensionError.bind(Main.extensionManager)(uuid, e);
         }
         Main.extensionManager._extensionOrder.push(uuid);
     }
@@ -230,7 +230,7 @@ class ESP {
         try {
             Main.extensionManager.lookup(uuid).stateObj.disable();
         } catch (e) {
-            Main.extensionManager.bind(Main.extensionManager).logExtensionError(uuid, e);
+            Main.extensionManager.logExtensionError.bind(Main.extensionManager)(uuid, e);
         }
         Main.extensionManager._extensionOrder.pop();
     }
