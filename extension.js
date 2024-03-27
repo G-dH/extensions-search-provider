@@ -216,7 +216,7 @@ export default class ESP extends Extension.Extension {
         try {
             await Main.extensionManager.lookup(uuid).stateObj.enable();
         } catch (e) {
-            Main.extensionManager.bind(Main.extensionManager).logExtensionError(uuid, e);
+            Main.extensionManager.logExtensionError.bind(Main.extensionManager)(uuid, e);
         }
         Main.extensionManager._extensionOrder.push(uuid);
     }
@@ -226,7 +226,7 @@ export default class ESP extends Extension.Extension {
         try {
             Main.extensionManager.lookup(uuid).stateObj.disable();
         } catch (e) {
-            Main.extensionManager.bind(Main.extensionManager).logExtensionError(uuid, e);
+            Main.extensionManager.logExtensionError.bind(Main.extensionManager)(uuid, e);
         }
         Main.extensionManager._extensionOrder.pop();
     }
