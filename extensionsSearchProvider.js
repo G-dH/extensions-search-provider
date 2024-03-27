@@ -9,14 +9,13 @@
 
 'use strict';
 
-const  { Atk, GLib, St, Gio, GObject, Clutter, Shell } = imports.gi;
+const  { GLib, St, Gio, Shell } = imports.gi;
 
 const Main = imports.ui.main;
-const Search = imports.ui.search;
-const ExtensionDownloader = imports.ui.extensionDownloader;
 const { Highlighter } = imports.misc.util;
 
-let ExtensionState;
+let HighlighterOverride;
+let ListSearchResult;
 
 const Icon = {
     ENABLE: 'object-select-symbolic', // 'emblem-ok-symbolic'
@@ -30,13 +29,10 @@ const Icon = {
     INFO: 'dialog-information-symbolic',
 };
 
-const ICON_OPACITY = 255;
-
 let Me;
 let opt;
 // gettext
 let _;
-let _toggleTimeout;
 
 // prefix helps to eliminate results from other search providers
 // this prefix is also used by the V-Shell to activate this provider
@@ -48,36 +44,27 @@ var ExtensionsSearchProviderModule = class {
         Me = me;
         opt = Me.opt;
         _  = Me._;
+        Me.Icon = Icon;
+        ListSearchResult = Me.imports.listSearchResult;
+        ListSearchResult.init(Me);
+        HighlighterOverride = Me.imports.highlighter;
 
         this._firstActivation = true;
         this.moduleEnabled = false;
         this._extensionsSearchProvider = null;
         this._enableTimeoutId = 0;
-
-        ExtensionState = {
-            1: _('ENABLED'),
-            2: _('DISABLED'),
-            3: _('ERROR'),
-            4: _('INCOMPATIBLE'),
-            5: _('DOWNLOADING'),
-            6: _('INITIALIZED'),
-            7: _('DISABLING'),
-            8: _('ENABLING'),
-        };
     }
 
     cleanGlobals() {
+        ListSearchResult.cleanGlobals();
+        ListSearchResult = null;
+        HighlighterOverride = null;
         Me = null;
         opt = null;
         _ = null;
     }
 
     update(reset) {
-        if (_toggleTimeout) {
-            GLib.source_remove(_toggleTimeout);
-            _toggleTimeout = 0;
-        }
-
         if (reset)
             this._disableModule();
         else if (!reset)
@@ -85,9 +72,8 @@ var ExtensionsSearchProviderModule = class {
     }
 
     _activateModule() {
-        this._overrides = new Me.Util.Overrides();
-        this._overrides.addOverride('Highlighter', Highlighter.prototype, HighlighterOverride);
-        this._overrides.addOverride('ListSearchResult', Search.ListSearchResult.prototype, ListSearchResultOverride);
+        Me._overrides = new Me.Util.Overrides();
+        HighlighterOverride.enable(Me);
 
         // GNOME 43/44 has a problem registering a new provider during Shell's startup
         let delay = 0;
@@ -131,8 +117,9 @@ var ExtensionsSearchProviderModule = class {
             this._extensionsSearchProvider = null;
         }
 
-        this._overrides.removeAll();
-        this._overrides = null;
+        HighlighterOverride.disable();
+        Me._overrides.removeAll();
+        Me._overrides = null;
 
         console.debug('  ExtensionsSearchProviderModule - Disabled');
     }
@@ -269,6 +256,8 @@ class ExtensionsSearchProvider {
             results.sort((a, b) => this.extensions[a.id].state !== 1 && [1, 3].includes(this.extensions[b.id].state));
             // prefer compatible extensions when relevance is equal
             results.sort((a, b) => this.extensions[a.id].state === 4 && this.extensions[b.id].state !== 4);
+            // sort by relevance - title starts with the search term > title word starts with the term
+            // then the same for a description
             results.sort((a, b) => Me.Util.isMoreRelevant(
                 this.extensions[a.id].metadata.name,
                 this.extensions[b.id].metadata.name,
@@ -434,620 +423,8 @@ class ExtensionsSearchProvider {
     }
 
     createResultObject(meta) {
-        const lsr = new ListSearchResult(this, meta, this.extensions[meta.id]);
+        const lsr = new ListSearchResult.ListSearchResult(this, meta, this.extensions[meta.id]);
         this.extensions[meta.id]['_resultRow'] = lsr;
         return lsr;
     }
 }
-
-const ListSearchResult = GObject.registerClass(
-class ListSearchResult extends St.Button {
-    _init(provider, metaInfo, extension) {
-        this.provider = provider;
-        this.metaInfo = metaInfo;
-        this.extension = extension;
-
-        super._init({
-            reactive: true,
-            can_focus: true,
-            track_hover: true,
-        });
-
-        this.style_class = 'list-search-result';
-        // reduce padding to compensate for button style
-        this.set_style('padding-top: 3px; padding-bottom: 3px');
-
-        const masterBox = new St.BoxLayout({
-            style_class: 'list-search-result-content',
-            vertical: true,
-            // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
-            x_expand: true,
-            y_expand: true,
-        });
-        this.set_child(masterBox);
-
-        const content = new St.BoxLayout({
-            style_class: 'list-search-result-content',
-            vertical: false,
-            // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
-            x_expand: true,
-            y_expand: true,
-        });
-        masterBox.add_child(content);
-        this._masterBox = masterBox;
-        this.set_child(masterBox);
-
-        // Status button
-        const statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
-        const statusBtn = new St.Button({
-            style_class: 'esp-button',
-            accessible_role: Atk.Role.CHECK_BOX,
-        });
-        statusBtn.set_child(statusIcon);
-        statusBtn.connect('enter-event', () => {
-            if (this._extensionUninstalled || extension.state === 4)
-                return;
-            this._hoverIcon = new St.Icon({
-                icon_name: [1, 3].includes(extension.state) ? Icon.DISABLE : Icon.ENABLE,
-                icon_size: this.ICON_SIZE,
-            });
-            statusBtn.set_child(this._hoverIcon);
-        });
-        statusBtn.connect('leave-event', () => {
-            if (this._extensionUninstalled || extension.state === 4)
-                return;
-            this.statusIcon?.destroy();
-            this.statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
-            statusBtn.set_child(this.statusIcon);
-        });
-        this._statusBtn = statusBtn;
-        this.statusIcon = statusIcon;
-
-        statusBtn.connect('clicked', () => {
-            this.grab_key_focus();
-            if (!this._extensionUninstalled)
-                this._toggleExtension();
-            return Clutter.EVENT_STOP;
-        });
-
-        // Settings icon
-        const prefsIcon = new St.Icon({
-            icon_name: Icon.SETTINGS,
-            icon_size: this.ICON_SIZE,
-            style_class: 'esp-icon',
-            opacity: extension.hasPrefs ? 150 : 0,
-        });
-
-        const infoBtn = new St.Button({
-            toggle_mode: false,
-            // style_class is set in the _updateState()
-            reactive: true,
-            accessible_role: Atk.Role.PUSH_BUTTON,
-        });
-
-        // Title label
-        const titleBox = new St.BoxLayout({
-            style_class: 'list-search-result-title',
-            y_align: Clutter.ActorAlign.CENTER,
-            reactive: true,
-            x_expand: true,
-        });
-
-        const title = new St.Label({
-            text: this.metaInfo['name'],
-            y_align: Clutter.ActorAlign.CENTER,
-        });
-        // Disable ellipsize for the title so it can't be ellispized
-        // because of use of filling widget which forces
-        // the search results to set to their maximum size when created
-        title.clutter_text.set({
-            ellipsize: 0,
-        });
-        titleBox.add_child(title);
-        this._titleLabel = title;
-
-        // Version label
-        const versionLabel = new St.Label({
-            text: metaInfo.version,
-            style_class: metaInfo.version ? 'esp-button' : '',
-            y_align: Clutter.ActorAlign.CENTER,
-            // visible: false,
-            opacity: 180,
-        });
-        this._versionLabel = versionLabel;
-        titleBox.add_child(versionLabel);
-
-        // Force full width on first allocation
-        const fillingWidget = new St.Label({
-            text: '                                                                                                                                                                                                                                                        ',
-            opacity: 0,
-            x_expand: true,
-        });
-
-        // Info icon
-        const infoIcon = new St.Icon({
-            icon_name: Icon.INFO,
-            icon_size: this.ICON_SIZE,
-            opacity: ICON_OPACITY,
-        });
-
-        infoBtn.set_child(infoIcon);
-
-        infoBtn.connect('clicked', () => {
-            this.grab_key_focus();
-            this._toggleInfoBox();
-        });
-
-        this._infoBtn = infoBtn;
-
-        // Status label
-        this._statusLabel = new St.Label({
-            style_class: 'list-search-result-description',
-            y_align: Clutter.ActorAlign.CENTER,
-            visible: false,
-        });
-
-        const controlsBox = new St.BoxLayout({
-            style_class: 'list-search-result-content',
-            vertical: false,
-            x_align: Clutter.ActorAlign.END,
-            x_expand: true,
-            y_expand: true,
-            reactive: true,
-        });
-        controlsBox.connect('button-press-event', () => true);
-
-
-        // Uninstall button
-        const uninstallIcon = new St.Icon({
-            icon_name: Icon.UNINSTALL,
-            icon_size: this.ICON_SIZE,
-            opacity: ICON_OPACITY,
-        });
-        const uninstallBtn = new St.Button({
-            toggle_mode: false,
-            style_class: 'esp-button-trash',
-            // Uninstall button should be visible and clickable only if installed in userspace
-            opacity: metaInfo.canUninstall ? 255 : 0,
-            reactive: metaInfo.canUninstall,
-        });
-        uninstallBtn.connect('clicked', () => {
-            if (!this._extensionUninstalled)
-                this._uninstallExtension();
-            return Clutter.EVENT_STOP;
-        });
-        uninstallBtn.set_child(uninstallIcon);
-        uninstallBtn.get_accessible().accessible_role = Atk.Role.PUSH_BUTTON;
-
-        content.add_child(statusBtn);
-        content.add_child(titleBox);
-        content.add_child(fillingWidget);
-        content.add_child(this._statusLabel);
-        content.add_child(prefsIcon);
-        controlsBox.add_child(infoBtn);
-        controlsBox.add_child(uninstallBtn);
-        content.add_child(controlsBox);
-
-        this.connect('destroy', () => {
-            if (_toggleTimeout) {
-                GLib.source_remove(_toggleTimeout);
-                _toggleTimeout = 0;
-            }
-        });
-
-        this._updateState();
-
-        // The first highlight
-        this._highlightTerms(provider);
-    }
-
-    _toggleInfoBox() {
-        // Create on demand
-        if (!this._infoBox) {
-            this._infoBox = new St.BoxLayout({
-                vertical: true,
-                x_expand: true,
-                visible: false,
-                opacity: 220,
-            });
-            this._masterBox.add_child(this._infoBox);
-        }
-
-        // Error label
-        if (this.extension.error && !this._errorLabel) {
-            this._errorLabel = new St.Label({
-                style_class: 'esp-error',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                can_focus: true,
-                reactive: true,
-            });
-            this._errorLabel.clutter_text.set({
-                ellipsize: 0,
-                line_wrap: true,
-                text: `<b>${ExtensionState[3]/* ERROR*/}:</b>  ${this.extension.error}`,
-                use_markup: true,
-            });
-            this._errorLabel.connect('button-press-event', () => true);
-
-            this._infoBox.insert_child_at_index(this._errorLabel, 0);
-        }
-
-        // Description label
-        if (!this._descriptionLabel) {
-            const descriptionBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            descriptionBtn.connect('button-press-event', () => true);
-
-            this._descriptionLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            this._descriptionLabel.clutter_text.set({
-                ellipsize: 0,
-                line_wrap: true,
-            });
-            this._highlightTerms(this.provider);
-            descriptionBtn.set_child(this._descriptionLabel);
-            this._infoBox.add_child(descriptionBtn);
-
-            // Homepage button
-            const linkLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                visible: !!this.metaInfo.url,
-            });
-            linkLabel.clutter_text.set_markup(`<b>Homepage:</b>  ${this.metaInfo.url}`);
-
-            const linkBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                can_focus: true,
-            });
-
-            linkBtn.connect('clicked', () => this._openHomepage());
-
-            linkBtn.set_child(linkLabel);
-            this._infoBox.add_child(linkBtn);
-
-            // UUID label
-            const uuidBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            const uuidLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            uuidLabel.clutter_text.set_markup(`<b>${_('UUID')}:</b>  ${this.metaInfo.id}`);
-
-            uuidBtn.connect('clicked', () => this._openMetadata());
-
-            uuidBtn.set_child(uuidLabel);
-            this._infoBox.add_child(uuidBtn);
-
-            // Path label
-            const pathBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                can_focus: true,
-            });
-            const pathLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            pathLabel.clutter_text.set_markup(`<b>${_('Path')}:</b>  ${this.extension.path}`);
-
-            pathBtn.connect('clicked', () => this._openInstallDir());
-
-            pathBtn.set_child(pathLabel);
-            this._infoBox.add_child(pathBtn);
-
-            // Schema label
-            const schema = this.extension.metadata['settings-schema'];
-            const schemaBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                can_focus: true,
-                visible: !!schema,
-            });
-            const schemaLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            schemaLabel.clutter_text.set_markup(`<b>${_('Schema')}:</b>  ${schema}`);
-
-            schemaBtn.connect('clicked', () => this._openSchema());
-
-            schemaBtn.set_child(schemaLabel);
-            this._infoBox.add_child(schemaBtn);
-
-            // Readme button
-            const readmePath = this._findREADME()[0] || '';
-            const readmeBtn = new St.Button({
-                style_class: 'esp-info-box-button',
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-                can_focus: true,
-                visible: !!readmePath,
-            });
-            const readmeLabel = new St.Label({
-                y_align: Clutter.ActorAlign.CENTER,
-                x_expand: true,
-            });
-            readmeLabel.clutter_text.set_markup(`<b>${_('README')}:</b>  ./${readmePath.replace(/\/.*\//, '')}`);
-
-            readmeBtn.connect('clicked', () => this._openREADME(readmePath));
-
-            readmeBtn.set_child(readmeLabel);
-            this._infoBox.add_child(readmeBtn);
-        }
-
-        const visible = this._infoBox.visible;
-        this._infoBox.visible = true;
-        this._infoBox.scale_y = visible ? 1 : 0;
-        this._infoBox.ease({
-            scale_y: visible ? 0 : 1,
-            duration: 100,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onComplete: () => {
-                this._infoBox.visible = !visible;
-            },
-        });
-
-        this._statusLabel.scale_y = visible ? 1 : 0;
-        this._statusLabel.visible = true;
-        this._statusLabel.ease({
-            scale_y: visible ? 0 : 1,
-            duration: 100,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onComplete: () => {
-                this._statusLabel.visible = !visible;
-            },
-        });
-    }
-
-    _openMetadata() {
-        Main.overview.hide();
-        Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}/metadata.json`, null);
-        let appInfo = Gio.AppInfo.get_default_for_type('application/json', false);
-        if (appInfo) {
-            const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
-            app?.activate();
-        } else {
-            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, this.metaInfo.id);
-            St.Clipboard.get_default().set_text(St.ClipboardType.PRIMARY, this.metaInfo.id);
-            Main.notify('UUID has been copied to the clipboard', this.metaInfo.id);
-        }
-    }
-
-    _openInstallDir() {
-        Main.overview.hide();
-        Gio.AppInfo.launch_default_for_uri(`file://${this.extension.path}`, null);
-    }
-
-    _openHomepage() {
-        Main.overview.hide();
-        Gio.AppInfo.launch_default_for_uri(this.metaInfo['url'], null);
-        const appInfo = Gio.AppInfo.get_default_for_uri_scheme('http');
-        if (appInfo) {
-            const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
-            app?.activate();
-        }
-    }
-
-    _openSchema() {
-        // Open schema in dconf-Editor if available
-        const schemaPath = `/${this.extension.metadata['settings-schema'].replace(/\./g, '/')}`;
-        let appInfo = Shell.AppSystem.get_default().lookup_app('ca.desrt.dconf-editor.desktop');
-        const app = Shell.AppSystem.get_default().get_running().find(a => a.id === appInfo.get_id());
-        Main.overview.hide();
-        if (app) {
-            // If dconf-Editor is already open, we cannot change the schema it is displaying,
-            // so copy the path to the clipboard so the user can paste it to the path field manually
-            St.Clipboard.get_default().set_text(St.ClipboardType.CLIPBOARD, schemaPath);
-            St.Clipboard.get_default().set_text(St.ClipboardType.PRIMARY, schemaPath);
-            Main.notify('Schema has been copied to the clipboard', schemaPath);
-        } else {
-            appInfo = Gio.AppInfo.create_from_commandline(`/usr/bin/dconf-editor ${schemaPath}`, 'dconf-Editor', null);
-            appInfo?.launch([], global.create_app_launch_context(global.get_current_time(), -1));
-        }
-        app?.activate();
-    }
-
-    _openREADME(path) {
-        Main.overview.hide();
-        Gio.AppInfo.launch_default_for_uri(`file://${path}`, null);
-    }
-
-    _findREADME() {
-        const extDir = this.extension.path;
-        const dir = Gio.file_new_for_path(extDir);
-        const enumerator = dir.enumerate_children('', 0, null);
-
-        const files = [];
-        let fileInfo;
-        while ((fileInfo = enumerator.next_file(null)) !== null) {
-            const fileName = fileInfo.get_name();
-            if (fileName.toLowerCase().includes('readme')) {
-                const filePath = GLib.build_filenamev([extDir, fileName]);
-                files.push(filePath);
-            }
-        }
-
-        return files;
-    }
-
-    _uninstallExtension() {
-        // React on double click only
-        this._lastTrashClick = this._lastTrashClick ?? 0;
-        if (Date.now() - this._lastTrashClick > Clutter.Settings.get_default().double_click_time) {
-            this._lastTrashClick = Date.now();
-            return;
-        } else {
-            this._lastTrashClick = 0;
-        }
-
-        ExtensionDownloader.uninstallExtension(this.metaInfo.id);
-        this._extensionUninstalled = true;
-        this.ease({
-            duration: 250,
-            scale_x: 0,
-            mode: Clutter.AnimationMode.EASE_OUT_QUAD,
-            onComplete: () => {
-                this.scale_y = 0;
-            },
-        });
-    }
-
-    _toggleExtension() {
-        if (this.metaInfo.id === Me.metadata.uuid) {
-            Main.notify(Me.metadata.name, _('Suicide is not allowed, please use another way to disable ESP'));
-            return;
-        }
-
-        const state = this.extension.state;
-        if (![1, 2, 6, 3].includes(state))
-            return;
-
-        if ([2, 6].includes(state))
-            Main.extensionManager.enableExtension(this.extension.uuid);
-        else if ([1, 3].includes(state))
-            Main.extensionManager.disableExtension(this.extension.uuid);
-
-        this.statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
-        this._statusBtn.set_child(this.statusIcon);
-        this._updateState();
-
-    }
-
-    get ICON_SIZE() {
-        return 20;
-    }
-
-    _highlightTerms(provider) {
-        let markup = provider._highlighter.highlight(this.metaInfo['name'], opt);
-
-        // clutter_text.set_markup(markup)
-        // should essentially do this two steps:
-        // clutter_text.set_text(markup)
-        // clutter_text.set_use_markup(true)
-        // In practice, the first (convenience) function, when used repeatedly on the same St.Label,
-        // acts as if it is one step behind. Each update of the same string with a different markup
-        // shows the previous markup in the label. We can simply call the function twice,
-        // or we can use the two separate functions to fix it.
-        // Seems like this issue is related to disabled ellipsization
-        this._titleLabel.clutter_text.set_text(markup);
-        this._titleLabel.clutter_text.set_use_markup(true);
-        if (this._descriptionLabel) {
-            markup = provider._highlighter.highlight(this.metaInfo['description'], opt);
-            // markup = `<b>${_('Description')}:</b> ${markup}`;
-            this._descriptionLabel.clutter_text.set_text(markup);
-            this._descriptionLabel.clutter_text.set_use_markup(true);
-        }
-    }
-
-    _updateState() {
-        const extension = this.extension;
-        // const state = extension.state === 4 ? ExtensionState[this.extension.state] : '';
-        const state = ExtensionState[this.extension.state];
-        const update = extension.hasUpdate ? `${_('UPDATE PENDING')} | ` : '';
-        const text = `${update}${state}`;
-        this._statusLabel.text = text;// this.metaInfo['description'].split('\n')[0];
-        this._infoBtn.set_style_class_name(extension.state === 3 ? 'esp-info-button-alert' : 'esp-info-button');
-    }
-
-    vfunc_clicked() {
-        this.activate();
-    }
-
-    activate() {
-        this.provider.activateResult(this.metaInfo.id);
-
-        if (this.metaInfo.clipboardText) {
-            St.Clipboard.get_default().set_text(
-                St.ClipboardType.CLIPBOARD, this.metaInfo.clipboardText);
-        }
-        // Prevent closing overview here if user activated special action
-        if (!Me.Util.isCtrlPressed() && !Me.Util.isShiftPressed())
-            Main.overview.toggle();
-    }
-});
-
-// Add highlighting of the "name" part of the result for all providers
-const ListSearchResultOverride = {
-    _highlightTerms() {
-        let markup = this._resultsView.highlightTerms(this.metaInfo['name']);
-        this.label_actor.clutter_text.set_markup(markup);
-        markup = this._resultsView.highlightTerms(this.metaInfo['description'].split('\n')[0]);
-        this._descriptionLabel.clutter_text.set_markup(markup);
-    },
-};
-
-const  HighlighterOverride = {
-    /**
-     * @param {?string[]} terms - list of terms to highlight
-     */
-    /* constructor(terms) {
-        if (!terms)
-            return;
-
-        const escapedTerms = terms
-            .map(term => Shell.util_regex_escape(term))
-            .filter(term => term.length > 0);
-
-        if (escapedTerms.length === 0)
-            return;
-
-        this._highlightRegex = new RegExp(
-            `(${escapedTerms.join('|')})`, 'gi');
-    },*/
-
-    /**
-     * Highlight all occurences of the terms defined for this
-     * highlighter in the provided text using markup.
-     *
-     * @param {string} text - text to highlight the defined terms in
-     * @returns {string}
-     */
-    highlight(text, options) {
-        if (!this._highlightRegex)
-            return GLib.markup_escape_text(text, -1);
-
-        // force use local settings if the class is overridden by another extension (V-Shell, WSP)
-        const o = options || opt;
-        let escaped = [];
-        let lastMatchEnd = 0;
-        let match;
-        let style = ['', ''];
-        if (o.HIGHLIGHT_DEFAULT)
-            style = ['<b>', '</b>'];
-        // The default highlighting by the bold style causes text to be "randomly" ellipsized in cases where it's not necessary
-        // and also blurry
-        // Underscore doesn't affect label size and all looks better
-        else if (o.HIGHLIGHT_UNDERLINE)
-            style = ['<u>', '</u>'];
-
-        while ((match = this._highlightRegex.exec(text))) {
-            if (match.index > lastMatchEnd) {
-                let unmatched = GLib.markup_escape_text(
-                    text.slice(lastMatchEnd, match.index), -1);
-                escaped.push(unmatched);
-            }
-            let matched = GLib.markup_escape_text(match[0], -1);
-            escaped.push(`${style[0]}${matched}${style[1]}`);
-            lastMatchEnd = match.index + match[0].length;
-        }
-        let unmatched = GLib.markup_escape_text(
-            text.slice(lastMatchEnd), -1);
-        escaped.push(unmatched);
-        return escaped.join('');
-    },
-};
