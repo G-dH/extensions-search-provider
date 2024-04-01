@@ -129,7 +129,7 @@ function openPreferences(metadata) {
     }
 
     if (!metaWin || (metaWin && !isMe)) {
-        // delay to avoid errors if previous prefs window has been colsed
+        // delay to avoid errors if previous prefs window has been closed
         GLib.idle_add(GLib.PRIORITY_LOW, () => {
             try {
                 Main.extensionManager.openExtensionPrefs(metadata.uuid, '', {});
