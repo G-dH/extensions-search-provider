@@ -71,6 +71,7 @@ class ListSearchResult extends St.Button {
         // reduce padding to compensate for button style
         this.set_style('padding-top: 3px; padding-bottom: 3px');
 
+        // masterBox is a container for content and infoBox
         const masterBox = new St.BoxLayout({
             style_class: 'list-search-result-content',
             vertical: true,
@@ -89,7 +90,6 @@ class ListSearchResult extends St.Button {
         });
         masterBox.add_child(content);
         this._masterBox = masterBox;
-        this.set_child(masterBox);
 
         // Status button
         const statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
@@ -124,21 +124,6 @@ class ListSearchResult extends St.Button {
             return Clutter.EVENT_STOP;
         });
 
-        // Settings icon
-        const prefsIcon = new St.Icon({
-            icon_name: Icon.SETTINGS,
-            icon_size: this.ICON_SIZE,
-            style_class: 'esp-icon',
-            opacity: extension.hasPrefs ? 150 : 0,
-        });
-
-        const infoBtn = new St.Button({
-            toggle_mode: false,
-            // style_class is set in the _updateState()
-            reactive: true,
-            accessible_role: Atk.Role.PUSH_BUTTON,
-        });
-
         // Title label
         const titleBox = new St.BoxLayout({
             style_class: 'list-search-result-title',
@@ -163,7 +148,7 @@ class ListSearchResult extends St.Button {
         // Version label
         const versionLabel = new St.Label({
             text: metaInfo.version,
-            style_class: metaInfo.version ? 'esp-button' : '',
+            style_class: metaInfo.version ? 'esp-extension-version' : '',
             y_align: Clutter.ActorAlign.CENTER,
             // visible: false,
             opacity: 180,
@@ -178,15 +163,40 @@ class ListSearchResult extends St.Button {
             x_expand: true,
         });
 
-        // Info icon
+        // Settings icon
+        const prefsIcon = new St.Icon({
+            icon_name: Icon.SETTINGS,
+            icon_size: this.ICON_SIZE,
+            style_class: 'esp-icon',
+            opacity: extension.hasPrefs ? 150 : 0,
+        });
+
+        // controlsBox holds infoBtn and uninstallBtn
+        const controlsBox = new St.BoxLayout({
+            style_class: 'list-search-result-content',
+            vertical: false,
+            x_align: Clutter.ActorAlign.END,
+            x_expand: true,
+            y_expand: true,
+            reactive: true,
+        });
+        // prevent activating the row if user accidentally clicks between buttons
+        controlsBox.connect('button-press-event', () => Clutter.EVENT_STOP);
+
+        // Info button
         const infoIcon = new St.Icon({
             icon_name: Icon.INFO,
             icon_size: this.ICON_SIZE,
             opacity: ICON_OPACITY,
         });
+        const infoBtn = new St.Button({
+            toggle_mode: false,
+            // style_class is set in _updateState()
+            reactive: true,
+            accessible_role: Atk.Role.PUSH_BUTTON,
+        });
 
         infoBtn.set_child(infoIcon);
-
         infoBtn.connect('clicked', () => {
             this.grab_key_focus();
             this._toggleInfoBox();
@@ -201,17 +211,6 @@ class ListSearchResult extends St.Button {
             visible: false,
         });
 
-        const controlsBox = new St.BoxLayout({
-            style_class: 'list-search-result-content',
-            vertical: false,
-            x_align: Clutter.ActorAlign.END,
-            x_expand: true,
-            y_expand: true,
-            reactive: true,
-        });
-        controlsBox.connect('button-press-event', () => true);
-
-
         // Uninstall button
         const uninstallIcon = new St.Icon({
             icon_name: Icon.UNINSTALL,
@@ -224,6 +223,7 @@ class ListSearchResult extends St.Button {
             // Uninstall button should be visible and clickable only if installed in userspace
             opacity: metaInfo.canUninstall ? 255 : 0,
             reactive: metaInfo.canUninstall,
+            accessible_role: Atk.Role.PUSH_BUTTON,
         });
         uninstallBtn.connect('clicked', () => {
             if (!this._extensionUninstalled)
@@ -231,7 +231,6 @@ class ListSearchResult extends St.Button {
             return Clutter.EVENT_STOP;
         });
         uninstallBtn.set_child(uninstallIcon);
-        uninstallBtn.get_accessible().accessible_role = Atk.Role.PUSH_BUTTON;
 
         content.add_child(statusBtn);
         content.add_child(titleBox);

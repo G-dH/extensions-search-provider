@@ -16,6 +16,7 @@
 }
 
 .esp-button,
+.esp-extension-version,
 .esp-info-button,
 .esp-info-button-alert,
 .esp-button-alert,
@@ -28,8 +29,8 @@
 
 .esp-info-button,
 .esp-info-button-alert {
-    padding-left: 8px;
-    padding-right: 8px;
+    padding-left: 12px;
+    padding-right: 12px;
 }
 
 .esp-button-alert,
@@ -39,6 +40,7 @@
 }
 
 .esp-button:hover,
+.esp-info-button:hover,
 .esp-button-trash:hover {
     background-color: rgba(180, 180, 180, 0.2);
 }
@@ -65,4 +67,8 @@
 
 .esp-error {
     background-color: rgba(200, 0, 0, 0.7);
+}
+
+.esp-extension-version {
+    padding: 4px 6px;
 }
