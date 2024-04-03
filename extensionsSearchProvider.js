@@ -29,7 +29,7 @@ const Icon = {
     INCOMPATIBLE: 'software-update-urgent', // 'software-update-urgent-symbolic'
     HOMEPAGE: 'go-home-symbolic',
     SETTINGS: 'preferences-system-symbolic',
-    INFO: 'dialog-information-symbolic',
+    INFO: 'preferences-system-details-symbolic', // 'dialog-information-symbolic'
 };
 
 let Me;
