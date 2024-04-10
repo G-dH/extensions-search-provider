@@ -19,6 +19,7 @@ import { Highlighter } from 'resource:///org/gnome/shell/misc/util.js';
 
 import * as ListSearchResult from './listSearchResult.js';
 import * as HighlighterOverride from './highlighter.js';
+import * as DashIcon from './dashIcon.js';
 
 const Icon = {
     ENABLE: 'object-select-symbolic', // 'emblem-ok-symbolic'
@@ -48,6 +49,7 @@ export class ExtensionsSearchProviderModule {
         Me = me;
         opt = Me.opt;
         _  = Me._;
+        Me.PREFIX = PREFIX;
         Me.Icon = Icon;
         ListSearchResult.init(Me);
 
@@ -58,6 +60,7 @@ export class ExtensionsSearchProviderModule {
     }
 
     cleanGlobals() {
+        ListSearchResult.cleanGlobals();
         Me = null;
         opt = null;
         _ = null;
@@ -108,7 +111,10 @@ export class ExtensionsSearchProviderModule {
                 });
         }
 
-        console.debug('  ExtensionsSearchProviderModule - Activated');
+        this._dashExtensionsIcon = new DashIcon.DashExtensionsIcon(Me);
+        Me.opt.connect('changed::dash-icon-position', () => this._dashExtensionsIcon.updateIcon());
+
+        console.debug('ExtensionsSearchProviderModule - Activated');
     }
 
     _disableModule() {
@@ -121,11 +127,14 @@ export class ExtensionsSearchProviderModule {
             this._extensionsSearchProvider = null;
         }
 
+        this._dashExtensionsIcon.destroy();
+        this._dashExtensionsIcon = null;
+
         HighlighterOverride.disable();
         Me._overrides.removeAll();
         Me._overrides = null;
 
-        console.debug('  ExtensionsSearchProviderModule - Disabled');
+        console.debug('ExtensionsSearchProviderModule - Disabled');
     }
 
     _registerProvider(provider) {

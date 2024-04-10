@@ -155,10 +155,10 @@ export default class ESP extends ExtensionPreferences {
             )
         );
 
-        /* optionList.push(
+        optionList.push(
             itemFactory.getRowWidget(
-                _('Extensions Icon Position'),
-                _('Allows to add "Search Extensions" icon into Dash so you can directly toggle extensions search provider results'),
+                _('Dash Icon Position'),
+                _('Allows to add the "Search Extensions" icon into the dash so you can directly toggle all extensions search provider results using a mouse'),
                 itemFactory.newDropDown(),
                 'dashIconPosition',
                 [
@@ -167,7 +167,7 @@ export default class ESP extends ExtensionPreferences {
                     [_('End'), 2],
                 ]
             )
-        );*/
+        );
 
         return optionList;
     }
