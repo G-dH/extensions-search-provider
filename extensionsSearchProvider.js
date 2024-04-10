@@ -16,6 +16,7 @@ const { Highlighter } = imports.misc.util;
 
 let HighlighterOverride;
 let ListSearchResult;
+let DashIcon;
 
 const Icon = {
     ENABLE: 'object-select-symbolic', // 'emblem-ok-symbolic'
@@ -45,8 +46,11 @@ var ExtensionsSearchProviderModule = class {
         opt = Me.opt;
         _  = Me._;
         Me.Icon = Icon;
+        Me.PREFIX = PREFIX;
+
         ListSearchResult = Me.imports.listSearchResult;
         ListSearchResult.init(Me);
+        DashIcon = Me.imports.dashIcon;
         HighlighterOverride = Me.imports.highlighter;
 
         this._firstActivation = true;
@@ -59,6 +63,8 @@ var ExtensionsSearchProviderModule = class {
         ListSearchResult.cleanGlobals();
         ListSearchResult = null;
         HighlighterOverride = null;
+        DashIcon.cleanGlobals();
+        DashIcon = null;
         Me = null;
         opt = null;
         _ = null;
@@ -97,14 +103,17 @@ var ExtensionsSearchProviderModule = class {
         const searchEntry = Main.overview.searchEntry;
         if (Main.overview._shown && searchEntry.text) {
             const text = searchEntry.text;
-            searchEntry.text = `${PREFIX}/`;
+            searchEntry.text = `${Me.PREFIX}/`;
             GLib.idle_add(GLib.PRIORITY_LOW,
                 () => {
                     searchEntry.text = text;
                 });
         }
 
-        console.debug('  ExtensionsSearchProviderModule - Activated');
+        this._dashExtensionsIcon = new DashIcon.DashExtensionsIcon(Me);
+        Me.opt.connect('changed::dash-icon-position', () => this._dashExtensionsIcon.updateIcon());
+
+        console.debug('ExtensionsSearchProviderModule - Activated');
     }
 
     _disableModule() {
@@ -117,11 +126,14 @@ var ExtensionsSearchProviderModule = class {
             this._extensionsSearchProvider = null;
         }
 
+        this._dashExtensionsIcon.destroy();
+        this._dashExtensionsIcon = null;
+
         HighlighterOverride.disable();
         Me._overrides.removeAll();
         Me._overrides = null;
 
-        console.debug('  ExtensionsSearchProviderModule - Disabled');
+        console.debug('ExtensionsSearchProviderModule - Disabled');
     }
 
     _registerProvider(provider) {
@@ -200,7 +212,7 @@ class ExtensionsSearchProvider {
     }
 
     _getResultSet(terms) {
-        const prefixes = [PREFIX];
+        const prefixes = [Me.PREFIX];
         prefixes.push(...opt.CUSTOM_PREFIXES);
 
         let prefix;
@@ -386,7 +398,7 @@ class ExtensionsSearchProvider {
         } else {
             // update search so all results will be listed
             Main.overview._overview._controls._searchController._searchResults._reset();
-            Main.overview._overview.controls._searchEntry.set_text(`${PREFIX} ${terms}`);
+            Main.overview._overview.controls._searchEntry.set_text(`${Me.PREFIX} ${terms}`);
             // cause an error so the overview will stay open
             this.dummyError();
         }
