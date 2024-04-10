@@ -30,7 +30,7 @@ export function disable() {
     Me = null;
 }
 
-var  HighlighterOverride = {
+const  HighlighterOverride = {
     /**
      * @param {?string[]} terms - list of terms to highlight
      */
