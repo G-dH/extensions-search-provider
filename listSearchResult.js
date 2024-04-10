@@ -54,8 +54,9 @@ export function cleanGlobals() {
     opt = null;
 }
 
-export const ListSearchResult = GObject.registerClass(
-class ListSearchResult extends St.Button {
+export const ListSearchResult = GObject.registerClass({
+    GTypeName: `ListSearchResult${Math.floor(Math.random() * 1000)}`,
+}, class ListSearchResult extends St.Button {
     _init(provider, metaInfo, extension) {
         this.provider = provider;
         this.metaInfo = metaInfo;
@@ -110,7 +111,7 @@ class ListSearchResult extends St.Button {
         statusBtn.connect('leave-event', () => {
             if (this._extensionUninstalled || extension.state === 4)
                 return;
-                // this.statusIcon?.destroy();
+            // this.statusIcon?.destroy();
             this.statusIcon = this.metaInfo['createIcon'](this.ICON_SIZE);
             statusBtn.set_child(this.statusIcon);
         });
