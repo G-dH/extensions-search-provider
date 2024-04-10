@@ -47,8 +47,9 @@ function cleanGlobals() {
     opt = null;
 }
 
-var ListSearchResult = GObject.registerClass(
-class ListSearchResult extends St.Button {
+var ListSearchResult = GObject.registerClass({
+    GTypeName: `ListSearchResult${Math.floor(Math.random() * 1000)}`,
+}, class ListSearchResult extends St.Button {
     _init(provider, metaInfo, extension) {
         this.provider = provider;
         this.metaInfo = metaInfo;
@@ -173,7 +174,7 @@ class ListSearchResult extends St.Button {
             y_expand: true,
             reactive: true,
         });
-        // prevent activating the row if user accidentally clicks between buttons
+            // prevent activating the row if user accidentally clicks between buttons
         controlsBox.connect('button-press-event', () => Clutter.EVENT_STOP);
 
         // Info button
