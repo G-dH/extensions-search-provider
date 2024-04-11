@@ -63,7 +63,6 @@ var ExtensionsSearchProviderModule = class {
         ListSearchResult.cleanGlobals();
         ListSearchResult = null;
         HighlighterOverride = null;
-        DashIcon.cleanGlobals();
         DashIcon = null;
         Me = null;
         opt = null;
