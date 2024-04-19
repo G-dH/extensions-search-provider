@@ -22,13 +22,16 @@ export default class ESP extends ExtensionPreferences {
         const itemFactory = new OptionsFactory.ItemFactory();
         const pageList = [
             {
-                name: 'general',
                 title: _('Options'),
-                iconName: 'open-menu-symbolic',
+                iconName: 'system-run-symbolic',
                 optionList: this._getGeneralOptionList(itemFactory),
             },
             {
-                name: 'about',
+                title: _('Misc'),
+                iconName: 'preferences-other-symbolic',
+                optionList: this._getMiscOptionList(itemFactory),
+            },
+            {
                 title: _('About'),
                 iconName: 'preferences-system-details-symbolic',
                 optionList: this._getAboutOptionList(itemFactory),
@@ -86,19 +89,15 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(
             itemFactory.getRowWidget(
-                _('Enable Fuzzy Match'),
-                _('Enabling the fuzzy match allows you to skip letters in the pattern you are searching for and find "V-Shell" even if you enter "vll"'),
-                itemFactory.newSwitch(),
-                'fuzzyMatch'
-            )
-        );
-
-        optionList.push(
-            itemFactory.getRowWidget(
-                _('Exclude Results From Global Search'),
-                _('Show results only if a search prefix is used, so that ESP results do not clutter the global search'),
-                itemFactory.newSwitch(),
-                'excludeFromGlobalSearch'
+                _('Dash Icon Position'),
+                _('Allows to add the "Search Extensions" icon into the dash so you can directly toggle all extensions search provider results using a mouse'),
+                itemFactory.newDropDown(),
+                'dashIconPosition',
+                [
+                    [_('Hide'), 0],
+                    [_('Start'), 1],
+                    [_('End'), 2],
+                ]
             )
         );
 
@@ -119,6 +118,15 @@ export default class ESP extends ExtensionPreferences {
 
         optionList.push(
             itemFactory.getRowWidget(
+                _('Exclude Results From Global Search'),
+                _('Show results only if a search prefix is used, so that ESP results do not clutter the global search'),
+                itemFactory.newSwitch(),
+                'excludeFromGlobalSearch'
+            )
+        );
+
+        optionList.push(
+            itemFactory.getRowWidget(
                 _('Show Incompatible Extensions'),
                 _('Extensions that do not support the current Shell version can be excluded from search results. The complete list is the result you obtain when entering only a search prefix'),
                 itemFactory.newDropDown(),
@@ -129,6 +137,15 @@ export default class ESP extends ExtensionPreferences {
                     [_('Show in complete list'), 2],
                     [_('Show when prefix is used'), 3],
                 ]
+            )
+        );
+
+        optionList.push(
+            itemFactory.getRowWidget(
+                _('Enable Fuzzy Match'),
+                _('Enabling the fuzzy match allows you to skip letters in the pattern you are searching for and find "V-Shell" even if you enter "vll"'),
+                itemFactory.newSwitch(),
+                'fuzzyMatch'
             )
         );
 
@@ -146,26 +163,24 @@ export default class ESP extends ExtensionPreferences {
             )
         );
 
+        return optionList;
+    }
+
+    _getMiscOptionList(itemFactory) {
+        const optionList = [];
+
         optionList.push(
             itemFactory.getRowWidget(
-                _('Fix Glitches When Disabling Extensions (Experimental)'),
-                _('This option, upon ESP activation, changes the order in which extensions are enabled to minimize issues when using ESP for disabling other extensions.\n\nContext: When you disable an extension in the GNOME Shell, the extension system first disables all extensions that were enabled after the selected one in reverse order and then, after disabling the selected one, re-enables them. If you use ESP, which is also an extension, to disable an extension that was enabled before ESP, you will experience the search results view disappearing and reappearing again with updated results, instead of just changing the status icon. This feature also reorders V-Shell extension if enabled, as its rebasing causes the overview to close.'),
-                itemFactory.newSwitch(),
-                'reorderExtensions'
+                _('Workarounds')
             )
         );
 
         optionList.push(
             itemFactory.getRowWidget(
-                _('Dash Icon Position'),
-                _('Allows to add the "Search Extensions" icon into the dash so you can directly toggle all extensions search provider results using a mouse'),
-                itemFactory.newDropDown(),
-                'dashIconPosition',
-                [
-                    [_('Hide'), 0],
-                    [_('Start'), 1],
-                    [_('End'), 2],
-                ]
+                _('Fix Glitches When Disabling Extensions (experimental)'),
+                _('This option, upon ESP activation, changes the order in which extensions are enabled to minimize issues when using ESP for disabling other extensions.\n\nContext: When you disable an extension in the GNOME Shell, the extension system first disables all extensions that were enabled after the selected one in reverse order and then, after disabling the selected one, re-enables them. If you use ESP, which is also an extension, to disable an extension that was enabled before ESP, you will experience the search results view disappearing and reappearing again with updated results, instead of just changing the status icon. This feature also reorders V-Shell extension if enabled, as its rebasing causes the overview to close.'),
+                itemFactory.newSwitch(),
+                'reorderExtensions'
             )
         );
 
