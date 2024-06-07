@@ -608,7 +608,7 @@ export const ListSearchResult = GObject.registerClass({
                 St.ClipboardType.CLIPBOARD, this.metaInfo.clipboardText);
         }
         // Prevent closing overview here if user activated special action
-        if (!Me.Util.isCtrlPressed() && !Me.Util.isShiftPressed())
-            Main.overview.toggle();
+        if (!Me?.Util.isCtrlPressed() && !Me?.Util.isShiftPressed())
+            Main.overview.hide();
     }
 });
