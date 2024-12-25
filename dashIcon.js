@@ -166,7 +166,7 @@ const ShowExtensionsIcon = GObject.registerClass({
         });
         this.icon.y_align = Clutter.ActorAlign.CENTER;
 
-        this.toggleButton.add_child(this.icon);
+        this.toggleButton.set_child(this.icon);
         this.toggleButton._delegate = this;
 
         this.setChild(this.toggleButton);
