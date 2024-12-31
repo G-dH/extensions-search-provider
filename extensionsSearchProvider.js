@@ -35,18 +35,12 @@ let opt;
 // gettext
 let _;
 
-// prefix helps to eliminate results from other search providers
-// this prefix is also used by the V-Shell to activate this provider
-const PREFIX = 'eq//';
-const ID = 'extensions';
-
 var ExtensionsSearchProviderModule = class {
     constructor(me) {
         Me = me;
         opt = Me.opt;
         _  = Me._;
         Me.Icon = Icon;
-        Me.PREFIX = PREFIX;
 
         ListSearchResult = Me.imports.listSearchResult;
         ListSearchResult.init(Me);
@@ -89,6 +83,8 @@ var ExtensionsSearchProviderModule = class {
             delay,
             () => {
                 if (!this._extensionsSearchProvider) {
+                    if (Me.shellVersion >= 43)
+                        Me._overrides.addOverride('SearchResultsView', Main.overview._overview.controls._searchController._searchResults, SearchResultsViewOverride);
                     this._extensionsSearchProvider = new ExtensionsSearchProvider();
                     this._registerProvider(this._extensionsSearchProvider);
                 }
@@ -102,7 +98,7 @@ var ExtensionsSearchProviderModule = class {
         const searchEntry = Main.overview.searchEntry;
         if (Main.overview._shown && searchEntry.text) {
             const text = searchEntry.text;
-            searchEntry.text = `${Me.PREFIX}/`;
+            searchEntry.text = `${Me.defaultPrefix}/`;
             GLib.idle_add(GLib.PRIORITY_LOW,
                 () => {
                     searchEntry.text = text;
@@ -169,7 +165,7 @@ var ExtensionsSearchProviderModule = class {
 
 class ExtensionsSearchProvider {
     constructor() {
-        this.id = ID;
+        this.id = Me.providerId;
         const appSystem = Shell.AppSystem.get_default();
 
         let appInfo = appSystem.lookup_app('com.matjakeman.ExtensionManager.desktop')?.get_app_info();
@@ -211,7 +207,7 @@ class ExtensionsSearchProvider {
     }
 
     _getResultSet(terms) {
-        const prefixes = [Me.PREFIX];
+        const prefixes = [Me.defaultPrefix];
         prefixes.push(...opt.CUSTOM_PREFIXES);
 
         let prefix;
@@ -397,7 +393,7 @@ class ExtensionsSearchProvider {
         } else {
             // update search so all results will be listed
             Main.overview._overview._controls._searchController._searchResults._reset();
-            Main.overview._overview.controls._searchEntry.set_text(`${Me.PREFIX} ${terms}`);
+            Main.overview._overview.controls._searchEntry.set_text(`${Me.defaultPrefix} ${terms}`);
             // cause an error so the overview will stay open
             this.dummyError();
         }
@@ -439,3 +435,38 @@ class ExtensionsSearchProvider {
         return lsr;
     }
 }
+
+const SearchResultsViewOverride = {
+    _doSearch() {
+        this._startingSearch = false;
+
+        let previousResults = this._results;
+        this._results = {};
+
+        const selectedProviders = [];
+        this._providers.forEach(provider => {
+            const prefixes = global.searchProvidersKeywords.get(provider.id);
+            if (prefixes) {
+                for (let p of prefixes) {
+                    p = new RegExp(`^${p}`, 'i');
+                    if (p.test(this._terms[0])) {
+                        selectedProviders.push(provider.id);
+                        break;
+                    }
+                }
+            }
+        });
+
+        this._providers.forEach(provider => {
+            if (!selectedProviders.length || selectedProviders.includes(provider.id)) {
+                let previousProviderResults = previousResults[provider.id];
+                this._doProviderSearch(provider, previousProviderResults);
+            } else {
+                provider.display.visible = false;
+            }
+        });
+
+        this._updateSearchProgress();
+        this._clearSearchTimeout();
+    },
+};

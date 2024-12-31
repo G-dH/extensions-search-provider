@@ -48,12 +48,13 @@ var Options = class Options {
 
         this.cachedOptions = {};
 
-        this._setOptionConstants();
+        this._updateCachedSettings();
     }
 
     _updateCachedSettings(/* settings, key */) {
         Object.keys(this.options).forEach(v => this.get(v, true));
         this._setOptionConstants();
+        this._addPrefixesToPublicList();
     }
 
     get(option, updateCache = false) {
@@ -104,6 +105,7 @@ var Options = class Options {
             GLib.Source.remove(this._writeTimeoutId);
         this._writeTimeoutId = 0;
         this._gsettings = null;
+        this._removePrefixesFromPublicList();
     }
 
     _setOptionConstants() {
@@ -125,5 +127,27 @@ var Options = class Options {
         this.HIGHLIGHT_UNDERLINE         = this.HIGHLIGHTING_STYLE === 1;
         this.HIGHLIGHT_NONE              = this.HIGHLIGHTING_STYLE === 2;
         this.REORDER_EXTENSIONS          = this.get('reorderExtensions');
+    }
+
+    _addPrefixesToPublicList() {
+        // ignore if called from Settings window
+        if (typeof global === 'undefined')
+            return;
+
+        if (!global.searchProvidersKeywords)
+            global.searchProvidersKeywords = new Map();
+        const prefixes = [this.Me.defaultPrefix];
+        prefixes.push(...this.CUSTOM_PREFIXES);
+        global.searchProvidersKeywords.set(this.Me.providerId, prefixes);
+    }
+
+    _removePrefixesFromPublicList() {
+        // ignore if called from Settings window
+        if (typeof global === 'undefined')
+            return;
+
+        global.searchProvidersKeywords?.delete(this.Me.providerId);
+        if (global.searchProvidersKeywords?.size === 0)
+            delete global.searchProvidersKeywords;
     }
 };

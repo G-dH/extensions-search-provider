@@ -42,18 +42,25 @@ class ESP {
         if (this._reorderExtensions())
             return;
 
-        this.Me = MyExtension;
-        this.Me.gSettings = ExtensionUtils.getSettings(this.Me.metadata['settings-schema']);
-        this.Me.Settings = Settings;
-        this.Me.Util = Util;
-        this.Me._ = imports.gettext.domain(this.Me.metadata['gettext-domain']).gettext;
+        const Me = MyExtension;
+        Me.providerId = 'extensions';
+        // prefix helps to eliminate results from other search providers
+        // this prefix is also used by the V-Shell to activate this provider
+        Me.defaultPrefix = 'eq//';
 
-        this.Me.opt = new this.Me.Settings.Options(this.Me);
+        Me.shellVersion = parseFloat(imports.misc.config.PACKAGE_VERSION);
+        Me.gSettings = ExtensionUtils.getSettings(Me.metadata['settings-schema']);
+        Me.Settings = Settings;
+        Me.Util = Util;
+        Me._ = imports.gettext.domain(Me.metadata['gettext-domain']).gettext;
+        Me.opt = new Me.Settings.Options(Me);
 
-        this._esp = new ExtensionsSearchProviderModule(this.Me);
+        this._esp = new ExtensionsSearchProviderModule(Me);
         this._esp.update();
 
-        console.debug(`${this.metadata.name}: enabled`);
+        this.Me = Me;
+
+        log(`${this.metadata.name}: enabled`);
     }
 
     disable() {
@@ -69,7 +76,7 @@ class ESP {
             this.Me = null;
         }
 
-        console.debug(`${this.metadata.name}: disabled`);
+        log(`${this.metadata.name}: disabled`);
     }
 
     _reorderExtensions() {

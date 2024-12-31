@@ -67,7 +67,7 @@ var DashExtensionsIcon = class {
 
         if (dash._extensionsIcon && !dash._extensionsIconClickedId) {
             dash._extensionsIconClickedId = dash._extensionsIcon.toggleButton.connect('clicked', () => {
-                this._activateSearchProvider(Me.PREFIX);
+                this._activateSearchProvider(Me.defaultPrefix);
             });
         }
 
