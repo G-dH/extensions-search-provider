@@ -21,6 +21,10 @@ import * as Util from './util.js';
 export default class ESP extends Extension.Extension {
     enable() {
         const Me = {};
+        Me.providerId = 'extensions';
+        // prefix helps to eliminate results from other search providers
+        // this prefix is also used by the V-Shell to activate this provider
+        Me.defaultPrefix = 'eq//';
 
         Me.getSettings = this.getSettings.bind(this);
         Me.metadata = this.metadata;
