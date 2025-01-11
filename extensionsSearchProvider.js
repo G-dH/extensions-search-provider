@@ -83,8 +83,7 @@ var ExtensionsSearchProviderModule = class {
             delay,
             () => {
                 if (!this._extensionsSearchProvider) {
-                    if (Me.shellVersion >= 43)
-                        Me._overrides.addOverride('SearchResultsView', Main.overview._overview.controls._searchController._searchResults, SearchResultsViewOverride);
+                    Me._overrides.addOverride('SearchResultsView', Main.overview._overview.controls._searchController._searchResults, SearchResultsViewOverride);
                     this._extensionsSearchProvider = new ExtensionsSearchProvider();
                     this._registerProvider(this._extensionsSearchProvider);
                 }
@@ -458,9 +457,27 @@ const SearchResultsViewOverride = {
         });
 
         this._providers.forEach(provider => {
+            provider.searchInProgress = true;
             if (!selectedProviders.length || selectedProviders.includes(provider.id)) {
                 let previousProviderResults = previousResults[provider.id];
-                this._doProviderSearch(provider, previousProviderResults);
+                if (Me.shellVersion < 43) {
+                    if (this._isSubSearch && previousProviderResults) {
+                        provider.getSubsearchResultSet(previousProviderResults,
+                            this._terms,
+                            results => {
+                                this._gotResults(results, provider);
+                            },
+                            this._cancellable);
+                    } else {
+                        provider.getInitialResultSet(this._terms,
+                            results => {
+                                this._gotResults(results, provider);
+                            },
+                            this._cancellable);
+                    }
+                } else {
+                    this._doProviderSearch(provider, previousProviderResults);
+                }
             } else {
                 provider.display.visible = false;
             }
