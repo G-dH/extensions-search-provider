@@ -61,9 +61,7 @@ var ListSearchResult = GObject.registerClass({
             track_hover: true,
         });
 
-        this.style_class = 'list-search-result';
-        // reduce padding to compensate for button style
-        this.set_style('padding-top: 3px; padding-bottom: 3px');
+        this.style_class = 'list-search-result esp-list-search-result';
 
         // masterBox is a container for content and infoBox
         const masterBox = new St.BoxLayout({
@@ -245,6 +243,7 @@ var ListSearchResult = GObject.registerClass({
         // Create on demand
         if (!this._infoBox) {
             this._infoBox = new St.BoxLayout({
+                style_class: 'esp-info-box',
                 vertical: true,
                 x_expand: true,
                 visible: false,

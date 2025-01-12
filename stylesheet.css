@@ -7,6 +7,16 @@
     spacing: 2px;
 }
 
+/* reduce padding to compensate for button style */
+.esp-list-search-result {
+    padding-top: 3px;
+    padding-bottom: 3px;
+}
+
+.esp-info-box {
+    padding-bottom: 4px;
+}
+
 .esp-button,
 .esp-extension-version,
 .esp-info-button,
