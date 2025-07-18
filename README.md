@@ -4,7 +4,7 @@ A GNOME Shell extension that gives you access to extensions Settings through ove
 WSP is supported by the V-Shell extension which allows you to toggle the window search using the Space key in activities overview or by clicking on the dedicated icon in the dash.
 
 ## Features
-- Supports GNOME Shell 42 - 47
+- Supports GNOME Shell 42 - 48
 - Search for extensions from the Activities overview
 - Strict or Fuzzy match options
 - Custom search prefixes allows for isolated and complete list of extensions / results
