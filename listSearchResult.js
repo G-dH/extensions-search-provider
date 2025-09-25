@@ -3,7 +3,7 @@
  * listSearchResult.js
  *
  * @author     GdH <G-dH@github.com>
- * @copyright  2024
+ * @copyright  2024 - 2025
  * @license    GPL-3.0
  */
 
@@ -179,8 +179,10 @@ export const ListSearchResult = GObject.registerClass({
             y_expand: true,
             reactive: true,
         });
-        // prevent activating the row if user accidentally clicks between buttons
-        controlsBox.connect('button-press-event', () => Clutter.EVENT_STOP);
+        // Prevent activating the row if user accidentally clicks between button
+        // Since GNOME 49 this connection blocks "clicked" signal of child buttons
+        // might be related to the removed vfunc_button_press_event...
+        // controlsBox.connect('button-press-event', () => Clutter.EVENT_STOP);
 
         // Info button
         const infoIcon = new St.Icon({
