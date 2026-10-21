@@ -75,7 +75,7 @@ export const ListSearchResult = GObject.registerClass({
             style_class: 'list-search-result-content',
             // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
             x_expand: true,
-            y_expand: true,
+            y_expand: false,
         });
         if (masterBox.orientation !== undefined)
             masterBox.orientation = Clutter.Orientation.VERTICAL
