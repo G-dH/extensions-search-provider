@@ -73,16 +73,18 @@ export const ListSearchResult = GObject.registerClass({
         // masterBox is a container for content and infoBox
         const masterBox = new St.BoxLayout({
             style_class: 'list-search-result-content',
-            vertical: true,
             // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
             x_expand: true,
             y_expand: true,
         });
+        if (masterBox.orientation !== undefined)
+            masterBox.orientation = Clutter.Orientation.VERTICAL
+        else
+            masterBox.vertical = true;
         this.set_child(masterBox);
 
         const content = new St.BoxLayout({
             style_class: 'list-search-result-content',
-            vertical: false,
             // x_align: Clutter.ActorAlign.START, // aligning cancels expand properties
             x_expand: true,
             y_expand: true,
@@ -173,7 +175,6 @@ export const ListSearchResult = GObject.registerClass({
         // controlsBox holds infoBtn and uninstallBtn
         const controlsBox = new St.BoxLayout({
             style_class: 'list-search-result-content',
-            vertical: false,
             x_align: Clutter.ActorAlign.END,
             x_expand: true,
             y_expand: true,
@@ -260,11 +261,14 @@ export const ListSearchResult = GObject.registerClass({
         if (!this._infoBox) {
             this._infoBox = new St.BoxLayout({
                 style_class: 'esp-info-box',
-                vertical: true,
                 x_expand: true,
                 visible: false,
                 opacity: 220,
             });
+            if (infoBox.orientation !== undefined)
+                infoBox.orientation = Clutter.Orientation.VERTICAL
+            else
+                infoBox.vertical = true;
             this._masterBox.add_child(this._infoBox);
         }
 
