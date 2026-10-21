@@ -259,7 +259,7 @@ export const ListSearchResult = GObject.registerClass({
     _toggleInfoBox() {
         // Create on demand
         if (!this._infoBox) {
-            this._infoBox = new St.BoxLayout({
+            const infoBox = new St.BoxLayout({
                 style_class: 'esp-info-box',
                 x_expand: true,
                 visible: false,
@@ -269,7 +269,8 @@ export const ListSearchResult = GObject.registerClass({
                 infoBox.orientation = Clutter.Orientation.VERTICAL
             else
                 infoBox.vertical = true;
-            this._masterBox.add_child(this._infoBox);
+            this._masterBox.add_child(infoBox);
+            this._infoBox = infoBox;
         }
 
         // Error label
